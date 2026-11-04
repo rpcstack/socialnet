@@ -66,8 +66,8 @@ if [ "$MODE" = masa ]; then
   echo "== [masa] overload run (config/gen_config.overload.json)"
   run_load gen_config.overload.json
   # Overload may produce client timeouts and misses; what matters is that the
-  # policy shed load (early returns) and that there were no RPC errors.
-  check_traces "out/$MODE" 0 --expect-early-returns
+  # policy shed load (early returns) and that there were no transport errors.
+  OVERLOAD=1 check_traces "out/$MODE" 0 --expect-early-returns
   echo "== [masa] recovery run (config/gen_config.json)"
   run_load gen_config.json
   check_traces "out/$MODE" "$MIN_SUCCESS"

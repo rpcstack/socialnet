@@ -50,7 +50,7 @@ check_traces "$OUT" "$MIN_SUCCESS"
 if [ "$MODE" = masa ]; then
   echo "== [masa] overload run (config/gen_config.overload.json)"
   run_load gen_config.overload.json
-  check_traces "$OUT" 0 --expect-early-returns
+  OVERLOAD=1 check_traces "$OUT" 0 --expect-early-returns
   echo "== [masa] recovery run (config/gen_config.json)"
   run_load gen_config.json
   check_traces "$OUT" "$MIN_SUCCESS"
