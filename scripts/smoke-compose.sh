@@ -52,6 +52,17 @@ echo "== [$MODE] policy-live probe (expect $MODE)"
 $DC run --rm --no-deps -T loadgen socialnet_policy_probe --expect "$MODE" \
   --frontend http://frontend-service:8080 --wait-secs 240 --control 20 $TARGETS
 
+if [ "$MODE" = baseline ]; then
+  echo "== [baseline] negative check: the Masa policy-live expectation must FAIL here"
+  # shellcheck disable=SC2086
+  if $DC run --rm --no-deps -T loadgen socialnet_policy_probe --expect masa \
+       --frontend http://frontend-service:8080 --control 1 $TARGETS >/tmp/neg-$$.log 2>&1; then
+    cat /tmp/neg-$$.log; echo "FAIL: policy-live check passed in baseline"; exit 1
+  fi
+  grep -E "policy-live|PROBE" /tmp/neg-$$.log; rm -f /tmp/neg-$$.log
+  echo "policy-live check failed in baseline, as required"
+fi
+
 run_load() {  # run_load <gen-config-file>
   rm -f "out/$MODE"/r*_*.csv
   GEN_CONFIG=$1 $DC run --rm --no-deps -T loadgen >"out/$MODE/loadgen.stdout" 2>&1 \
