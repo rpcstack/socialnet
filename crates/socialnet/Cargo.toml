@@ -1,0 +1,146 @@
+[package]
+name = "socialnet"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "textservice_server"
+path = "src/text_service/main.rs"
+
+[[bin]]
+name = "textservice_client"
+path = "src/text_service/client.rs"
+
+[[bin]]
+name = "textservice_bench"
+path = "src/text_service/client_gen.rs"
+
+[[bin]]
+name = "usermention_server"
+path = "src/user_mention/main.rs"
+
+[[bin]]
+name = "usermention_client"
+path = "src/user_mention/client.rs"
+
+[[bin]]
+name = "url_shorten_server"
+path = "src/url_shorten/main.rs"
+
+[[bin]]
+name = "url_shorten_client"
+path = "src/url_shorten/client.rs"
+
+[[bin]]
+name = "user_service"
+path = "src/user/main.rs"
+
+[[bin]]
+name = "user_timeline_server"
+path = "src/user_timeline/main.rs"
+
+[[bin]]
+name = "post_storage_server"
+path = "src/post_storage/main.rs"
+
+[[bin]]
+name = "compose_post_server"
+path = "src/compose_post/main.rs"
+
+[[bin]]
+name = "register_user_server"
+path = "src/register_user/main.rs"
+
+[[bin]]
+name = "frontend_server"
+path = "src/frontend/main.rs"
+
+[[bin]]
+name = "home_timeline_server"
+path = "src/home_timeline/main.rs"
+
+[[bin]]
+name = "social_graph_server"
+path = "src/social_graph/main.rs"
+
+[[bin]]
+name = "write_home_timeline_server"
+path = "src/write_home_timeline/main.rs"
+
+[[bin]]
+name = "media_service"
+path = "src/media/main.rs"
+
+[[bin]]
+name = "unique_id_service"
+path = "src/unique_id/server.rs"
+
+[[bin]]
+name = "socialnet_client_bench"
+path = "src/client/client_bench.rs"
+
+[features]
+# Policy modes. `baseline` (no features) leaves `masa::DefaultHooks` as
+# `tonic::rpcstack::noop::NoopHooks`. `masa` is the composed Masa policy preset
+# documented in rpcstack's examples/masa/README.md (same preset as rpcstack/hotel).
+default = []
+baseline = []
+masa = ["sched_slo", "abort_slo", "signal_slack", "est_mean_var", "ac_pred"]
+
+# Individual Masa features, passed through unchanged.
+sched_slo = ["masa/sched_slo"]
+sched_mt = ["masa/sched_mt"]
+sched_mt_multiqueue = ["sched_mt", "masa/sched_mt_multiqueue"]
+sched_tailclipper = ["masa/sched_tailclipper"]
+sched_fifo = ["masa/sched_fifo"]
+sched_oracle = ["masa/sched_oracle"]
+sched_pred = ["masa/sched_pred"]
+abort_slo = ["masa/abort_slo"]
+abort_slack = ["masa/abort_slack"]
+signal_slack = ["masa/signal_slack"]
+estimator = ["masa/estimator"]
+ac_pred = ["masa/ac_pred"]
+ac_rajomon = ["masa/ac_rajomon", "app-utils/ac_rajomon"]
+est_rms = ["masa/est_rms"]
+est_hist = ["masa/est_hist"]
+est_mean_var = ["masa/est_mean_var"]
+trace_queue_latency = ["masa/trace_queue_latency", "app-utils/trace_queue_latency"]
+deadline_equals_slack = ["masa/deadline_equals_slack"]
+stack_custom = ["masa/stack_custom"]
+sched_custom = ["masa/sched_custom"]
+
+[dependencies]
+masa = { workspace = true }
+tonic = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "net", "sync"] }
+app-utils = { path = "../app-utils" }
+prost = "0.12"
+mongodb = "=2.8.2"
+async-memcached = "0.5.0"
+deadpool-redis = { version = "0.14.0", features = ["rt_tokio_1", "cluster"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+futures = "0.3"
+rand = "0.8.5"
+log = "0.4"
+env_logger = "0.10"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+regex = "1.11.1"
+chrono = "0.4.23"
+once_cell = "1.20"
+structopt = "0.3.23"
+rand_distr = "0.4"
+anyhow = "1.0.100"
+futures-lite = "2.0.0"
+csv = "1.3"
+lapin = "2.3.1"
+jsonwebtoken = "9.3.1"
+sha2 = "0.10.9"
+hex = "0.4.3"
+
+[build-dependencies]
+tonic-build = { workspace = true }
+protoc-bin-vendored = "3"
