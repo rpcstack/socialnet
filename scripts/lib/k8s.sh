@@ -72,7 +72,6 @@ k8s_deploy() {
   kubectl --context "$(k8s_ctx)" create namespace "$NS" --dry-run=client -o yaml \
     | kubectl --context "$(k8s_ctx)" apply -f - >/dev/null
   sed "s#__IMAGE__#$image#g" k8s/socialnet.yaml | kc apply -f -
-  kc rollout status deployment --timeout=600s --watch >/dev/null 2>&1 || true
   kc wait --for=condition=Available deployment --all --timeout=600s
 }
 
