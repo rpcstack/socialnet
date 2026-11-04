@@ -2,6 +2,16 @@ name: k8s-smoke
 
 on:
   workflow_dispatch:
+  # Also on pull requests that touch the deployment, so layout changes are
+  # exercised before merge.
+  pull_request:
+    paths:
+      - ".github/workflows/k8s-smoke.yml"
+      - "Dockerfile"
+      - "docker/**"
+      - "k8s/**"
+      - "scripts/**"
+      - "config/**"
   schedule:
     - cron: "0 7 * * *"
 
