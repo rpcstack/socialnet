@@ -819,7 +819,10 @@ where
 
             let client = self.client.clone();
             let ctrs = Arc::clone(&counters);
-            let rng = self.rng.clone();
+            // Fresh, independent per-request stream. Cloning `self.rng` would hand
+            // consecutive requests overlapping random sequences (one draw
+            // apart), which makes RegisterUser generate duplicate usernames.
+            let rng = StdRng::seed_from_u64(self.rng.gen());
             let trace = Instant::now() > trace_at;
 
             set.spawn(async move {
