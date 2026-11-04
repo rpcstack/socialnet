@@ -37,16 +37,24 @@ for t in compose_post:compose-post register_user:register-user user:user unique_
   TARGETS="$TARGETS --target ${t%%:*}=http://${t#*:}-service-1:8080"
 done
 
-# Services that raced their databases at startup may still be restarting once
-# the Deployments report Available: warm the stack up (result ignored) so the
-# assertions below see a settled system.
-echo "== [$MODE] warm-up"
-# shellcheck disable=SC2086
-k8s_probe "$MODE" --wait-secs 240 --control 20 $TARGETS >/dev/null 2>&1 || true
+probe_run() {
+  # shellcheck disable=SC2086
+  k8s_probe "$MODE" --wait-secs 240 --control 20 $TARGETS
+}
 
+# Cold start: services restart once while their databases start, and on a slow
+# machine Masa's admission control can reject the first control requests. Retry
+# the probe a few times until the stack settles; a run only passes when ALL of
+# its checks (20/20 control requests, 13/13 services) pass in that one run.
 echo "== [$MODE] policy-live probe (expect $MODE)"
-# shellcheck disable=SC2086
-k8s_probe "$MODE" --wait-secs 240 --control 20 $TARGETS
+probe_ok=0
+for attempt in 1 2 3 4 5 6; do
+  if probe_run >/tmp/probe-$$.log 2>&1; then probe_ok=1; break; fi
+  echo "probe attempt $attempt failed:"; grep -E "control|policy-live|PROBE|FAIL" /tmp/probe-$$.log | tail -n 6
+  sleep 10
+done
+cat /tmp/probe-$$.log; rm -f /tmp/probe-$$.log
+[ "$probe_ok" = 1 ] || { echo "FAIL: policy-live probe never passed"; exit 1; }
 
 if [ "$MODE" = baseline ]; then
   echo "== [baseline] negative check: the Masa policy-live expectation must FAIL here"
