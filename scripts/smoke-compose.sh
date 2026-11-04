@@ -49,6 +49,12 @@ for t in compose_post:compose-post register_user:register-user user:user unique_
   TARGETS="$TARGETS --target ${t%%:*}=http://$host:8080"
 done
 
+# Services that raced their databases at startup may still be settling: warm
+# the stack up (result ignored) so the assertions below see a settled system.
+echo "== [$MODE] warm-up"
+# shellcheck disable=SC2086
+$DC run --rm --no-deps -T loadgen probe --expect "$MODE" --wait-secs 240 --control 20 $TARGETS >/dev/null 2>&1 || true
+
 echo "== [$MODE] policy-live probe (expect $MODE)"
 # shellcheck disable=SC2086
 $DC run --rm --no-deps -T loadgen probe --expect "$MODE" \
