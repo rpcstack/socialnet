@@ -1,0 +1,33 @@
+# Load generator Job. scripts/k8s-up.sh creates the `loadgen-config` ConfigMap
+# from config/ and substitutes __IMAGE__ and __GEN_CONFIG__.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: loadgen
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: {app: loadgen}
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: loadgen
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args:
+        - >-
+          socialnet_policy_probe --expect none
+          --frontend http://frontend-service:8080 --wait-secs 300 --control 0 &&
+          socialnet_client_bench --gen-config /config/__GEN_CONFIG__
+          --output-path /out --save-logs &&
+          touch /out/DONE && echo LOADGEN_DONE && sleep 3600
+        volumeMounts:
+        - {name: config, mountPath: /config, readOnly: true}
+        - {name: out, mountPath: /out}
+      volumes:
+      - name: config
+        configMap: {name: loadgen-config}
+      - name: out
+        emptyDir: {}

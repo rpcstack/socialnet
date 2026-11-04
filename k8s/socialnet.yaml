@@ -1,0 +1,1061 @@
+# socialnet on Kubernetes: infrastructure (MongoDB, Redis, Memcached, RabbitMQ)
+# and the application services. Applied by scripts/k8s-up.sh, which substitutes
+# __IMAGE__ with the locally built image in the kind registry.
+#
+# Application services reach each other as <service>-1: the application's
+# replica-aware channels dial "<ip>-<n>:<port>", so every Service is named
+# "<service>-1" and the *_IP environment variables carry the "<service>" stem.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-storage-mongo
+  labels: {app: post-storage-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: post-storage-mongo}
+  template:
+    metadata:
+      labels: {app: post-storage-mongo, tier: infra}
+    spec:
+      containers:
+      - name: post-storage-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: post-storage-mongo
+spec:
+  selector: {app: post-storage-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-storage-memcached
+  labels: {app: post-storage-memcached, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: post-storage-memcached}
+  template:
+    metadata:
+      labels: {app: post-storage-memcached, tier: infra}
+    spec:
+      containers:
+      - name: post-storage-memcached
+        image: memcached:1.6
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 11211
+        readinessProbe:
+          tcpSocket: {port: 11211}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: post-storage-memcached
+spec:
+  selector: {app: post-storage-memcached}
+  ports:
+  - {port: 11211, targetPort: 11211}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-timeline-mongo
+  labels: {app: user-timeline-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-timeline-mongo}
+  template:
+    metadata:
+      labels: {app: user-timeline-mongo, tier: infra}
+    spec:
+      containers:
+      - name: user-timeline-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-timeline-mongo
+spec:
+  selector: {app: user-timeline-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-timeline-redis
+  labels: {app: user-timeline-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-timeline-redis}
+  template:
+    metadata:
+      labels: {app: user-timeline-redis, tier: infra}
+    spec:
+      containers:
+      - name: user-timeline-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-timeline-redis
+spec:
+  selector: {app: user-timeline-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-timeline-redis
+  labels: {app: home-timeline-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: home-timeline-redis}
+  template:
+    metadata:
+      labels: {app: home-timeline-redis, tier: infra}
+    spec:
+      containers:
+      - name: home-timeline-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-timeline-redis
+spec:
+  selector: {app: home-timeline-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: write-home-timeline-redis
+  labels: {app: write-home-timeline-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: write-home-timeline-redis}
+  template:
+    metadata:
+      labels: {app: write-home-timeline-redis, tier: infra}
+    spec:
+      containers:
+      - name: write-home-timeline-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: write-home-timeline-redis
+spec:
+  selector: {app: write-home-timeline-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mongo
+  labels: {app: user-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-mongo}
+  template:
+    metadata:
+      labels: {app: user-mongo, tier: infra}
+    spec:
+      containers:
+      - name: user-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mongo
+spec:
+  selector: {app: user-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-redis
+  labels: {app: user-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-redis}
+  template:
+    metadata:
+      labels: {app: user-redis, tier: infra}
+    spec:
+      containers:
+      - name: user-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-redis
+spec:
+  selector: {app: user-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-graph-mongo
+  labels: {app: social-graph-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: social-graph-mongo}
+  template:
+    metadata:
+      labels: {app: social-graph-mongo, tier: infra}
+    spec:
+      containers:
+      - name: social-graph-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-graph-mongo
+spec:
+  selector: {app: social-graph-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-graph-redis
+  labels: {app: social-graph-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: social-graph-redis}
+  template:
+    metadata:
+      labels: {app: social-graph-redis, tier: infra}
+    spec:
+      containers:
+      - name: social-graph-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-graph-redis
+spec:
+  selector: {app: social-graph-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mention-mongo
+  labels: {app: user-mention-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-mention-mongo}
+  template:
+    metadata:
+      labels: {app: user-mention-mongo, tier: infra}
+    spec:
+      containers:
+      - name: user-mention-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mention-mongo
+spec:
+  selector: {app: user-mention-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mention-memcached
+  labels: {app: user-mention-memcached, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-mention-memcached}
+  template:
+    metadata:
+      labels: {app: user-mention-memcached, tier: infra}
+    spec:
+      containers:
+      - name: user-mention-memcached
+        image: memcached:1.6
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 11211
+        readinessProbe:
+          tcpSocket: {port: 11211}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mention-memcached
+spec:
+  selector: {app: user-mention-memcached}
+  ports:
+  - {port: 11211, targetPort: 11211}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: url-shorten-mongo
+  labels: {app: url-shorten-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: url-shorten-mongo}
+  template:
+    metadata:
+      labels: {app: url-shorten-mongo, tier: infra}
+    spec:
+      containers:
+      - name: url-shorten-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-shorten-mongo
+spec:
+  selector: {app: url-shorten-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  labels: {app: rabbitmq, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: rabbitmq}
+  template:
+    metadata:
+      labels: {app: rabbitmq, tier: infra}
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.13
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5672
+        readinessProbe:
+          tcpSocket: {port: 5672}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  selector: {app: rabbitmq}
+  ports:
+  - {port: 5672, targetPort: 5672}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-storage-service
+  labels: {app: post-storage-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: post-storage-service}
+  template:
+    metadata:
+      labels: {app: post-storage-service, tier: app}
+    spec:
+      containers:
+      - name: post-storage-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["post_storage_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: POST_STORAGE_MONGODB_URI, value: "mongodb://post-storage-mongo:27017"}
+        - {name: POST_STORAGE_MONGODB_DATABASE, value: "post-storage"}
+        - {name: POST_STORAGE_MEMCACHED_ADDR, value: "tcp://post-storage-memcached:11211"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: post-storage-service-1
+spec:
+  selector: {app: post-storage-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-timeline-service
+  labels: {app: user-timeline-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-timeline-service}
+  template:
+    metadata:
+      labels: {app: user-timeline-service, tier: app}
+    spec:
+      containers:
+      - name: user-timeline-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["user_timeline_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: USER_TIMELINE_MONGODB_URI, value: "mongodb://user-timeline-mongo:27017"}
+        - {name: USER_TIMELINE_REDIS_URL, value: "redis://user-timeline-redis:6379"}
+        - {name: POST_STORAGE_IP, value: "post-storage-service"}
+        - {name: POST_STORAGE_PORT, value: "8080"}
+        - {name: POST_STORAGE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-timeline-service-1
+spec:
+  selector: {app: user-timeline-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-timeline-service
+  labels: {app: home-timeline-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: home-timeline-service}
+  template:
+    metadata:
+      labels: {app: home-timeline-service, tier: app}
+    spec:
+      containers:
+      - name: home-timeline-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["home_timeline_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: HOME_TIMELINE_REDIS_URL, value: "redis://home-timeline-redis:6379"}
+        - {name: POST_STORAGE_SERVICE_IP, value: "post-storage-service"}
+        - {name: POST_STORAGE_SERVICE_PORT, value: "8080"}
+        - {name: POST_STORAGE_SERVICE_REPLICAS, value: "1"}
+        - {name: SOCIAL_GRAPH_SERVICE_IP, value: "social-graph-service"}
+        - {name: SOCIAL_GRAPH_SERVICE_PORT, value: "8080"}
+        - {name: SOCIAL_GRAPH_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-timeline-service-1
+spec:
+  selector: {app: home-timeline-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: write-home-timeline-service
+  labels: {app: write-home-timeline-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: write-home-timeline-service}
+  template:
+    metadata:
+      labels: {app: write-home-timeline-service, tier: app}
+    spec:
+      containers:
+      - name: write-home-timeline-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["write_home_timeline_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: RABBITMQ_URL, value: "amqp://guest:guest@rabbitmq:5672"}
+        - {name: REDIS_URL, value: "redis://write-home-timeline-redis:6379"}
+        - {name: SOCIAL_GRAPH_SERVICE_IP, value: "social-graph-service"}
+        - {name: SOCIAL_GRAPH_SERVICE_PORT, value: "8080"}
+        - {name: SOCIAL_GRAPH_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: write-home-timeline-service-1
+spec:
+  selector: {app: write-home-timeline-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels: {app: user-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-service}
+  template:
+    metadata:
+      labels: {app: user-service, tier: app}
+    spec:
+      containers:
+      - name: user-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["user_service"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: MONGO_URL, value: "mongodb://user-mongo:27017/user"}
+        - {name: REDIS_URL, value: "redis://user-redis:6379"}
+        - {name: JWT_SECRET, value: "socialnet-demo-secret-change-me"}
+        - {name: MACHINE_ID, value: "02"}
+        - {name: SOCIAL_GRAPH_SERVICE_IP, value: "social-graph-service"}
+        - {name: SOCIAL_GRAPH_SERVICE_PORT, value: "8080"}
+        - {name: SOCIAL_GRAPH_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service-1
+spec:
+  selector: {app: user-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-graph-service
+  labels: {app: social-graph-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: social-graph-service}
+  template:
+    metadata:
+      labels: {app: social-graph-service, tier: app}
+    spec:
+      containers:
+      - name: social-graph-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["social_graph_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: MONGO_URL, value: "mongodb://social-graph-mongo:27017/social-graph"}
+        - {name: REDIS_URL, value: "redis://social-graph-redis:6379"}
+        - {name: USER_SERVICE_IP, value: "user-service"}
+        - {name: USER_SERVICE_PORT, value: "8080"}
+        - {name: USER_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-graph-service-1
+spec:
+  selector: {app: social-graph-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unique-id-service
+  labels: {app: unique-id-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: unique-id-service}
+  template:
+    metadata:
+      labels: {app: unique-id-service, tier: app}
+    spec:
+      containers:
+      - name: unique-id-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["unique_id_service"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: MACHINE_ID, value: "01"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unique-id-service-1
+spec:
+  selector: {app: unique-id-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-service
+  labels: {app: media-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: media-service}
+  template:
+    metadata:
+      labels: {app: media-service, tier: app}
+    spec:
+      containers:
+      - name: media-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["media_service"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-service-1
+spec:
+  selector: {app: media-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: text-service
+  labels: {app: text-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: text-service}
+  template:
+    metadata:
+      labels: {app: text-service, tier: app}
+    spec:
+      containers:
+      - name: text-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["textservice_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: USER_MENTION_SERVICE_IP, value: "user-mention-service"}
+        - {name: USER_MENTION_SERVICE_PORT, value: "8080"}
+        - {name: USER_MENTION_SERVICE_REPLICAS, value: "1"}
+        - {name: URL_SHORTEN_SERVICE_IP, value: "url-shorten-service"}
+        - {name: URL_SHORTEN_SERVICE_PORT, value: "8080"}
+        - {name: URL_SHORTEN_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: text-service-1
+spec:
+  selector: {app: text-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mention-service
+  labels: {app: user-mention-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-mention-service}
+  template:
+    metadata:
+      labels: {app: user-mention-service, tier: app}
+    spec:
+      containers:
+      - name: user-mention-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["usermention_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: MONGO_URL, value: "mongodb://user-mention-mongo:27017/user-mention"}
+        - {name: MEMCACHED_URL, value: "tcp://user-mention-memcached:11211"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mention-service-1
+spec:
+  selector: {app: user-mention-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: url-shorten-service
+  labels: {app: url-shorten-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: url-shorten-service}
+  template:
+    metadata:
+      labels: {app: url-shorten-service, tier: app}
+    spec:
+      containers:
+      - name: url-shorten-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["url_shorten_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: MONGO_URL, value: "mongodb://url-shorten-mongo:27017/url-shorten"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-shorten-service-1
+spec:
+  selector: {app: url-shorten-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: register-user-service
+  labels: {app: register-user-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: register-user-service}
+  template:
+    metadata:
+      labels: {app: register-user-service, tier: app}
+    spec:
+      containers:
+      - name: register-user-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["register_user_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: USER_SERVICE_IP, value: "user-service"}
+        - {name: USER_SERVICE_PORT, value: "8080"}
+        - {name: USER_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: register-user-service-1
+spec:
+  selector: {app: register-user-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-service
+  labels: {app: frontend-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: frontend-service}
+  template:
+    metadata:
+      labels: {app: frontend-service, tier: app}
+    spec:
+      containers:
+      - name: frontend-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["frontend_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: COMPOSE_POST_SERVICE_IP, value: "compose-post-service"}
+        - {name: COMPOSE_POST_SERVICE_PORT, value: "8080"}
+        - {name: COMPOSE_POST_SERVICE_REPLICAS, value: "1"}
+        - {name: REGISTER_USER_SERVICE_IP, value: "register-user-service"}
+        - {name: REGISTER_USER_SERVICE_PORT, value: "8080"}
+        - {name: REGISTER_USER_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service-1
+spec:
+  selector: {app: frontend-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+# Stable name for the load generator and for users: the frontend's entry point.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector: {app: frontend-service}
+  ports:
+  - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compose-post-service
+  labels: {app: compose-post-service, tier: app}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: compose-post-service}
+  template:
+    metadata:
+      labels: {app: compose-post-service, tier: app}
+    spec:
+      containers:
+      - name: compose-post-service
+        image: __IMAGE__
+        imagePullPolicy: IfNotPresent
+        command: ["compose_post_server"]
+        ports:
+        - containerPort: 8080
+        env:
+        - {name: POST_STORAGE_IP, value: "post-storage-service"}
+        - {name: POST_STORAGE_PORT, value: "8080"}
+        - {name: POST_STORAGE_REPLICAS, value: "1"}
+        - {name: USER_TIMELINE_IP, value: "user-timeline-service"}
+        - {name: USER_TIMELINE_PORT, value: "8080"}
+        - {name: USER_TIMELINE_REPLICAS, value: "1"}
+        - {name: HOME_TIMELINE_IP, value: "home-timeline-service"}
+        - {name: HOME_TIMELINE_PORT, value: "8080"}
+        - {name: HOME_TIMELINE_REPLICAS, value: "1"}
+        - {name: USER_SERVICE_IP, value: "user-service"}
+        - {name: USER_SERVICE_PORT, value: "8080"}
+        - {name: USER_SERVICE_REPLICAS, value: "1"}
+        - {name: MEDIA_SERVICE_IP, value: "media-service"}
+        - {name: MEDIA_SERVICE_PORT, value: "8080"}
+        - {name: MEDIA_SERVICE_REPLICAS, value: "1"}
+        - {name: TEXT_SERVICE_IP, value: "text-service"}
+        - {name: TEXT_SERVICE_PORT, value: "8080"}
+        - {name: TEXT_SERVICE_REPLICAS, value: "1"}
+        - {name: USER_MENTION_SERVICE_IP, value: "user-mention-service"}
+        - {name: USER_MENTION_SERVICE_PORT, value: "8080"}
+        - {name: USER_MENTION_SERVICE_REPLICAS, value: "1"}
+        - {name: URL_SHORTEN_SERVICE_IP, value: "url-shorten-service"}
+        - {name: URL_SHORTEN_SERVICE_PORT, value: "8080"}
+        - {name: URL_SHORTEN_SERVICE_REPLICAS, value: "1"}
+        - {name: UNIQUE_ID_SERVICE_IP, value: "unique-id-service"}
+        - {name: UNIQUE_ID_SERVICE_PORT, value: "8080"}
+        - {name: UNIQUE_ID_SERVICE_REPLICAS, value: "1"}
+        - {name: RUST_LOG, value: "info"}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compose-post-service-1
+spec:
+  selector: {app: compose-post-service}
+  ports:
+  - {port: 8080, targetPort: 8080}

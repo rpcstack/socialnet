@@ -1,0 +1,13 @@
+{
+  "Repeats": 1,
+  "Apis": ["ComposePost", "RegisterUser"],
+  "ApiWeights": [9, 1],
+  "Slos": [50000, 50000],
+  "Rps": [2000],
+  "Gap": "const",
+  "WarmupSecs": 5,
+  "DurationSecs": 10,
+  "MaxInFlight": 0,
+  "Addr": "http://frontend-service:8080",
+  "Timeouts_ms": [1000, 1000]
+}

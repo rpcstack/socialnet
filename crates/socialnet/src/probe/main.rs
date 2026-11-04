@@ -229,10 +229,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let attempt = async {
             let ch = channel(&args.frontend, timeout).await?;
             let mut fe = frontend::frontend_service_client::FrontendServiceClient::new(ch);
-            let ctx = RootContext::from(masa::create_context(
-                "ComposePost",
-                Duration::from_secs(5),
-            ));
+            let ctx =
+                RootContext::from(masa::create_context("ComposePost", Duration::from_secs(5)));
             fe.compose_post(ctx.attach(Request::new(compose_post_request())))
                 .await?;
             Ok::<_, Box<dyn std::error::Error>>(fe)
@@ -251,10 +249,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Control: generous SLO, must succeed in both modes.
     let mut ok = 0;
     for _ in 0..args.control {
-        let ctx = RootContext::from(masa::create_context(
-            "ComposePost",
-            Duration::from_secs(5),
-        ));
+        let ctx = RootContext::from(masa::create_context("ComposePost", Duration::from_secs(5)));
         let req = ctx.attach(Request::new(compose_post_request()));
         match fe.compose_post(req).await {
             Ok(_) => ok += 1,

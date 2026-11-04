@@ -332,7 +332,6 @@ services:
     <<: *app
     restart: "no"
     command: ["sh", "-c", "socialnet_policy_probe --expect none --frontend http://frontend-service:8080 --wait-secs 180 --control 0 && exec socialnet_client_bench --gen-config /config/${GEN_CONFIG:-gen_config.json} --output-path /out --save-logs"]
-    profiles: ["loadgen"]
     depends_on:
       - frontend-service
     volumes:
