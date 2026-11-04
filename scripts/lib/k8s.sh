@@ -83,11 +83,18 @@ k8s_probe() {
     --command -- socialnet_policy_probe --expect "$expect" --frontend http://frontend-service:8080 "$@"
 }
 
+# Delete the load generator Job and wait until its pod is really gone, so the
+# next run cannot pick up the previous pod or its /out/DONE marker.
+k8s_delete_loadgen() {
+  kc delete job loadgen --ignore-not-found --wait >/dev/null
+  kc wait --for=delete pod -l job-name=loadgen --timeout=180s >/dev/null 2>&1 || true
+}
+
 # k8s_loadgen <gen-config file name under config/> [outdir]: run the load
 # generator Job; with an outdir, wait for it and copy the traces there.
 k8s_loadgen() {
   local cfg=$1 out=${2:-}
-  kc delete job loadgen --ignore-not-found --wait >/dev/null
+  k8s_delete_loadgen
   kc create configmap loadgen-config --from-file=config --dry-run=client -o yaml | kc apply -f - >/dev/null
   sed "s#__IMAGE__#$(k8s_image)#g; s#__GEN_CONFIG__#$cfg#g" k8s/loadgen-job.yaml | kc apply -f -
   [ -n "$out" ] || return 0
@@ -106,7 +113,7 @@ k8s_loadgen() {
   done
   mkdir -p "$out"; rm -f "$out"/r*_*.csv
   kc exec "$pod" -- tar -C /out -cf - . | tar -C "$out" -xf -
-  kc delete job loadgen --wait >/dev/null
+  k8s_delete_loadgen
 }
 
 k8s_down() {
