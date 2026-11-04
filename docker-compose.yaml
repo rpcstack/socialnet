@@ -1,0 +1,340 @@
+# socialnet on rpcstack. Build mode is chosen at build time:
+#   docker compose up --build                 # baseline (no-op hooks)
+#   MODE=masa docker compose up --build       # Masa composed policy
+# Every application service runs one binary from the same locally built image.
+# Services reach each other as <service>-1 (a network alias), the naming the
+# application's replica-aware channels expect.
+name: rpcstack-socialnet-${MODE:-baseline}
+
+x-app: &app
+  image: rpcstack-socialnet:${MODE:-baseline}
+  build:
+    context: .
+    args:
+      MODE: ${MODE:-baseline}
+  restart: unless-stopped
+  environment: &app-env
+    RUST_LOG: ${RUST_LOG:-info}
+
+services:
+  post-storage-mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+
+  post-storage-memcached:
+    image: memcached:1.6
+    restart: unless-stopped
+
+  user-timeline-mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+
+  user-timeline-redis:
+    image: redis:7.2
+    restart: unless-stopped
+
+  home-timeline-redis:
+    image: redis:7.2
+    restart: unless-stopped
+
+  write-home-timeline-redis:
+    image: redis:7.2
+    restart: unless-stopped
+
+  user-mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+
+  user-redis:
+    image: redis:7.2
+    restart: unless-stopped
+
+  social-graph-mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+
+  social-graph-redis:
+    image: redis:7.2
+    restart: unless-stopped
+
+  user-mention-mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+
+  user-mention-memcached:
+    image: memcached:1.6
+    restart: unless-stopped
+
+  url-shorten-mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 64000
+        hard: 64000
+
+  rabbitmq:
+    image: rabbitmq:3.13
+    restart: unless-stopped
+
+  post-storage-service:
+    <<: *app
+    command: ["post_storage_server"]
+    networks:
+      default:
+        aliases: ["post-storage-service-1"]
+    environment:
+      <<: *app-env
+      POST_STORAGE_MONGODB_URI: "mongodb://post-storage-mongo:27017"
+      POST_STORAGE_MONGODB_DATABASE: "post-storage"
+      POST_STORAGE_MEMCACHED_ADDR: "tcp://post-storage-memcached:11211"
+    depends_on:
+      - post-storage-mongo
+      - post-storage-memcached
+
+  user-timeline-service:
+    <<: *app
+    command: ["user_timeline_server"]
+    networks:
+      default:
+        aliases: ["user-timeline-service-1"]
+    environment:
+      <<: *app-env
+      USER_TIMELINE_MONGODB_URI: "mongodb://user-timeline-mongo:27017"
+      USER_TIMELINE_REDIS_URL: "redis://user-timeline-redis:6379"
+      POST_STORAGE_IP: "post-storage-service"
+      POST_STORAGE_PORT: "8080"
+      POST_STORAGE_REPLICAS: "1"
+    depends_on:
+      - user-timeline-mongo
+      - user-timeline-redis
+      - post-storage-service
+
+  home-timeline-service:
+    <<: *app
+    command: ["home_timeline_server"]
+    networks:
+      default:
+        aliases: ["home-timeline-service-1"]
+    environment:
+      <<: *app-env
+      HOME_TIMELINE_REDIS_URL: "redis://home-timeline-redis:6379"
+      POST_STORAGE_SERVICE_IP: "post-storage-service"
+      POST_STORAGE_SERVICE_PORT: "8080"
+      POST_STORAGE_SERVICE_REPLICAS: "1"
+      SOCIAL_GRAPH_SERVICE_IP: "social-graph-service"
+      SOCIAL_GRAPH_SERVICE_PORT: "8080"
+      SOCIAL_GRAPH_SERVICE_REPLICAS: "1"
+    depends_on:
+      - home-timeline-redis
+      - post-storage-service
+      - social-graph-service
+
+  write-home-timeline-service:
+    <<: *app
+    command: ["write_home_timeline_server"]
+    networks:
+      default:
+        aliases: ["write-home-timeline-service-1"]
+    environment:
+      <<: *app-env
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672"
+      REDIS_URL: "redis://write-home-timeline-redis:6379"
+      SOCIAL_GRAPH_SERVICE_IP: "social-graph-service"
+      SOCIAL_GRAPH_SERVICE_PORT: "8080"
+      SOCIAL_GRAPH_SERVICE_REPLICAS: "1"
+    depends_on:
+      - rabbitmq
+      - write-home-timeline-redis
+      - social-graph-service
+
+  user-service:
+    <<: *app
+    command: ["user_service"]
+    networks:
+      default:
+        aliases: ["user-service-1"]
+    environment:
+      <<: *app-env
+      MONGO_URL: "mongodb://user-mongo:27017/user"
+      REDIS_URL: "redis://user-redis:6379"
+      JWT_SECRET: ${JWT_SECRET:-socialnet-demo-secret-change-me}
+      MACHINE_ID: "02"
+      SOCIAL_GRAPH_SERVICE_IP: "social-graph-service"
+      SOCIAL_GRAPH_SERVICE_PORT: "8080"
+      SOCIAL_GRAPH_SERVICE_REPLICAS: "1"
+    depends_on:
+      - user-mongo
+      - user-redis
+
+  social-graph-service:
+    <<: *app
+    command: ["social_graph_server"]
+    networks:
+      default:
+        aliases: ["social-graph-service-1"]
+    environment:
+      <<: *app-env
+      MONGO_URL: "mongodb://social-graph-mongo:27017/social-graph"
+      REDIS_URL: "redis://social-graph-redis:6379"
+      USER_SERVICE_IP: "user-service"
+      USER_SERVICE_PORT: "8080"
+      USER_SERVICE_REPLICAS: "1"
+    depends_on:
+      - social-graph-mongo
+      - social-graph-redis
+      - user-service
+
+  unique-id-service:
+    <<: *app
+    command: ["unique_id_service"]
+    networks:
+      default:
+        aliases: ["unique-id-service-1"]
+    environment:
+      <<: *app-env
+      MACHINE_ID: "01"
+
+  media-service:
+    <<: *app
+    command: ["media_service"]
+    networks:
+      default:
+        aliases: ["media-service-1"]
+    environment:
+      <<: *app-env
+
+  text-service:
+    <<: *app
+    command: ["textservice_server"]
+    networks:
+      default:
+        aliases: ["text-service-1"]
+    environment:
+      <<: *app-env
+      USER_MENTION_SERVICE_IP: "user-mention-service"
+      USER_MENTION_SERVICE_PORT: "8080"
+      USER_MENTION_SERVICE_REPLICAS: "1"
+      URL_SHORTEN_SERVICE_IP: "url-shorten-service"
+      URL_SHORTEN_SERVICE_PORT: "8080"
+      URL_SHORTEN_SERVICE_REPLICAS: "1"
+    depends_on:
+      - user-mention-service
+      - url-shorten-service
+
+  user-mention-service:
+    <<: *app
+    command: ["usermention_server"]
+    networks:
+      default:
+        aliases: ["user-mention-service-1"]
+    environment:
+      <<: *app-env
+      MONGO_URL: "mongodb://user-mention-mongo:27017/user-mention"
+      MEMCACHED_URL: "tcp://user-mention-memcached:11211"
+    depends_on:
+      - user-mention-mongo
+      - user-mention-memcached
+
+  url-shorten-service:
+    <<: *app
+    command: ["url_shorten_server"]
+    networks:
+      default:
+        aliases: ["url-shorten-service-1"]
+    environment:
+      <<: *app-env
+      MONGO_URL: "mongodb://url-shorten-mongo:27017/url-shorten"
+    depends_on:
+      - url-shorten-mongo
+
+  register-user-service:
+    <<: *app
+    command: ["register_user_server"]
+    networks:
+      default:
+        aliases: ["register-user-service-1"]
+    environment:
+      <<: *app-env
+      USER_SERVICE_IP: "user-service"
+      USER_SERVICE_PORT: "8080"
+      USER_SERVICE_REPLICAS: "1"
+    depends_on:
+      - user-service
+
+  frontend-service:
+    <<: *app
+    command: ["frontend_server"]
+    networks:
+      default:
+        aliases: ["frontend-service-1"]
+    environment:
+      <<: *app-env
+      COMPOSE_POST_SERVICE_IP: "compose-post-service"
+      COMPOSE_POST_SERVICE_PORT: "8080"
+      COMPOSE_POST_SERVICE_REPLICAS: "1"
+      REGISTER_USER_SERVICE_IP: "register-user-service"
+      REGISTER_USER_SERVICE_PORT: "8080"
+      REGISTER_USER_SERVICE_REPLICAS: "1"
+    depends_on:
+      - compose-post-service
+      - register-user-service
+
+  compose-post-service:
+    <<: *app
+    command: ["compose_post_server"]
+    networks:
+      default:
+        aliases: ["compose-post-service-1"]
+    environment:
+      <<: *app-env
+      POST_STORAGE_IP: "post-storage-service"
+      POST_STORAGE_PORT: "8080"
+      POST_STORAGE_REPLICAS: "1"
+      USER_TIMELINE_IP: "user-timeline-service"
+      USER_TIMELINE_PORT: "8080"
+      USER_TIMELINE_REPLICAS: "1"
+      HOME_TIMELINE_IP: "home-timeline-service"
+      HOME_TIMELINE_PORT: "8080"
+      HOME_TIMELINE_REPLICAS: "1"
+      USER_SERVICE_IP: "user-service"
+      USER_SERVICE_PORT: "8080"
+      USER_SERVICE_REPLICAS: "1"
+      MEDIA_SERVICE_IP: "media-service"
+      MEDIA_SERVICE_PORT: "8080"
+      MEDIA_SERVICE_REPLICAS: "1"
+      TEXT_SERVICE_IP: "text-service"
+      TEXT_SERVICE_PORT: "8080"
+      TEXT_SERVICE_REPLICAS: "1"
+      USER_MENTION_SERVICE_IP: "user-mention-service"
+      USER_MENTION_SERVICE_PORT: "8080"
+      USER_MENTION_SERVICE_REPLICAS: "1"
+      URL_SHORTEN_SERVICE_IP: "url-shorten-service"
+      URL_SHORTEN_SERVICE_PORT: "8080"
+      URL_SHORTEN_SERVICE_REPLICAS: "1"
+      UNIQUE_ID_SERVICE_IP: "unique-id-service"
+      UNIQUE_ID_SERVICE_PORT: "8080"
+      UNIQUE_ID_SERVICE_REPLICAS: "1"
+    depends_on:
+      - post-storage-service
+      - user-timeline-service
+      - home-timeline-service
+      - user-service
+      - unique-id-service
+      - media-service
+      - text-service
+      - user-mention-service
+      - url-shorten-service
+
+  # Load generator: waits for the stack, runs config/gen_config.json against the
+  # frontend and writes CSV traces to ./out/${MODE}/ on the host.
+  loadgen:
+    <<: *app
+    restart: "no"
+    command: ["sh", "-c", "socialnet_policy_probe --expect none --frontend http://frontend-service:8080 --wait-secs 180 --control 0 && exec socialnet_client_bench --gen-config /config/${GEN_CONFIG:-gen_config.json} --output-path /out --save-logs"]
+    profiles: ["loadgen"]
+    depends_on:
+      - frontend-service
+    volumes:
+      - ./config:/config:ro
+      - ./out/${MODE:-baseline}:/out
