@@ -1,6 +1,7 @@
 # One image holds every socialnet binary; each compose service / k8s Deployment
-# picks one with its `command`. MODE selects the rpcstack policy stack at build
-# time: `baseline` (no-op hooks) or `masa` (composed Masa policy).
+# picks one by passing a service name to docker/entrypoint.sh. MODE selects the
+# rpcstack policy stack at build time: `baseline` (no-op hooks) or `masa`
+# (composed Masa policy).
 #
 #   docker build --build-arg MODE=masa -t rpcstack-socialnet:masa .
 
@@ -30,6 +31,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /out/ /usr/local/bin/
-ENV RPCSTACK_SOCIALNET_MODE=${MODE} \
-    RUST_LOG=info
+RUN echo "$MODE" > /etc/socialnet-mode
+COPY docker/entrypoint.sh /usr/local/bin/socialnet-entrypoint
+COPY config/ /etc/socialnet/
+ENV RUST_LOG=info \
+    SOCIALNET_GEN_CONFIG=/etc/socialnet/gen_config.json
 WORKDIR /app
+ENTRYPOINT ["/usr/local/bin/socialnet-entrypoint"]
+CMD ["mode"]

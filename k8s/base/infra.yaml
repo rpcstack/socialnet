@@ -1,0 +1,463 @@
+# socialnet infrastructure: MongoDB, Redis, Memcached and RabbitMQ.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-storage-mongo
+  labels: {app: post-storage-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: post-storage-mongo}
+  template:
+    metadata:
+      labels: {app: post-storage-mongo, tier: infra}
+    spec:
+      containers:
+      - name: post-storage-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: post-storage-mongo
+spec:
+  selector: {app: post-storage-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-storage-memcached
+  labels: {app: post-storage-memcached, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: post-storage-memcached}
+  template:
+    metadata:
+      labels: {app: post-storage-memcached, tier: infra}
+    spec:
+      containers:
+      - name: post-storage-memcached
+        image: memcached:1.6
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 11211
+        readinessProbe:
+          tcpSocket: {port: 11211}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: post-storage-memcached
+spec:
+  selector: {app: post-storage-memcached}
+  ports:
+  - {port: 11211, targetPort: 11211}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-timeline-mongo
+  labels: {app: user-timeline-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-timeline-mongo}
+  template:
+    metadata:
+      labels: {app: user-timeline-mongo, tier: infra}
+    spec:
+      containers:
+      - name: user-timeline-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-timeline-mongo
+spec:
+  selector: {app: user-timeline-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-timeline-redis
+  labels: {app: user-timeline-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-timeline-redis}
+  template:
+    metadata:
+      labels: {app: user-timeline-redis, tier: infra}
+    spec:
+      containers:
+      - name: user-timeline-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-timeline-redis
+spec:
+  selector: {app: user-timeline-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-timeline-redis
+  labels: {app: home-timeline-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: home-timeline-redis}
+  template:
+    metadata:
+      labels: {app: home-timeline-redis, tier: infra}
+    spec:
+      containers:
+      - name: home-timeline-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-timeline-redis
+spec:
+  selector: {app: home-timeline-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: write-home-timeline-redis
+  labels: {app: write-home-timeline-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: write-home-timeline-redis}
+  template:
+    metadata:
+      labels: {app: write-home-timeline-redis, tier: infra}
+    spec:
+      containers:
+      - name: write-home-timeline-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: write-home-timeline-redis
+spec:
+  selector: {app: write-home-timeline-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mongo
+  labels: {app: user-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-mongo}
+  template:
+    metadata:
+      labels: {app: user-mongo, tier: infra}
+    spec:
+      containers:
+      - name: user-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mongo
+spec:
+  selector: {app: user-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-redis
+  labels: {app: user-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-redis}
+  template:
+    metadata:
+      labels: {app: user-redis, tier: infra}
+    spec:
+      containers:
+      - name: user-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-redis
+spec:
+  selector: {app: user-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-graph-mongo
+  labels: {app: social-graph-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: social-graph-mongo}
+  template:
+    metadata:
+      labels: {app: social-graph-mongo, tier: infra}
+    spec:
+      containers:
+      - name: social-graph-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-graph-mongo
+spec:
+  selector: {app: social-graph-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-graph-redis
+  labels: {app: social-graph-redis, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: social-graph-redis}
+  template:
+    metadata:
+      labels: {app: social-graph-redis, tier: infra}
+    spec:
+      containers:
+      - name: social-graph-redis
+        image: redis:7.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+        readinessProbe:
+          tcpSocket: {port: 6379}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-graph-redis
+spec:
+  selector: {app: social-graph-redis}
+  ports:
+  - {port: 6379, targetPort: 6379}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mention-mongo
+  labels: {app: user-mention-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-mention-mongo}
+  template:
+    metadata:
+      labels: {app: user-mention-mongo, tier: infra}
+    spec:
+      containers:
+      - name: user-mention-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mention-mongo
+spec:
+  selector: {app: user-mention-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mention-memcached
+  labels: {app: user-mention-memcached, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: user-mention-memcached}
+  template:
+    metadata:
+      labels: {app: user-mention-memcached, tier: infra}
+    spec:
+      containers:
+      - name: user-mention-memcached
+        image: memcached:1.6
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 11211
+        readinessProbe:
+          tcpSocket: {port: 11211}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mention-memcached
+spec:
+  selector: {app: user-mention-memcached}
+  ports:
+  - {port: 11211, targetPort: 11211}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: url-shorten-mongo
+  labels: {app: url-shorten-mongo, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: url-shorten-mongo}
+  template:
+    metadata:
+      labels: {app: url-shorten-mongo, tier: infra}
+    spec:
+      containers:
+      - name: url-shorten-mongo
+        image: mongo:7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 27017
+        readinessProbe:
+          tcpSocket: {port: 27017}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-shorten-mongo
+spec:
+  selector: {app: url-shorten-mongo}
+  ports:
+  - {port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  labels: {app: rabbitmq, tier: infra}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: rabbitmq}
+  template:
+    metadata:
+      labels: {app: rabbitmq, tier: infra}
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.13
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5672
+        readinessProbe:
+          tcpSocket: {port: 5672}
+          periodSeconds: 2
+          failureThreshold: 90
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  selector: {app: rabbitmq}
+  ports:
+  - {port: 5672, targetPort: 5672}

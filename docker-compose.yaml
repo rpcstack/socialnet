@@ -83,7 +83,7 @@ services:
 
   post-storage-service:
     <<: *app
-    command: ["post_storage_server"]
+    command: ["post-storage-service"]
     networks:
       default:
         aliases: ["post-storage-service-1"]
@@ -98,7 +98,7 @@ services:
 
   user-timeline-service:
     <<: *app
-    command: ["user_timeline_server"]
+    command: ["user-timeline-service"]
     networks:
       default:
         aliases: ["user-timeline-service-1"]
@@ -116,7 +116,7 @@ services:
 
   home-timeline-service:
     <<: *app
-    command: ["home_timeline_server"]
+    command: ["home-timeline-service"]
     networks:
       default:
         aliases: ["home-timeline-service-1"]
@@ -136,7 +136,7 @@ services:
 
   write-home-timeline-service:
     <<: *app
-    command: ["write_home_timeline_server"]
+    command: ["write-home-timeline-service"]
     networks:
       default:
         aliases: ["write-home-timeline-service-1"]
@@ -154,7 +154,7 @@ services:
 
   user-service:
     <<: *app
-    command: ["user_service"]
+    command: ["user-service"]
     networks:
       default:
         aliases: ["user-service-1"]
@@ -173,7 +173,7 @@ services:
 
   social-graph-service:
     <<: *app
-    command: ["social_graph_server"]
+    command: ["social-graph-service"]
     networks:
       default:
         aliases: ["social-graph-service-1"]
@@ -191,7 +191,7 @@ services:
 
   unique-id-service:
     <<: *app
-    command: ["unique_id_service"]
+    command: ["unique-id-service"]
     networks:
       default:
         aliases: ["unique-id-service-1"]
@@ -201,7 +201,7 @@ services:
 
   media-service:
     <<: *app
-    command: ["media_service"]
+    command: ["media-service"]
     networks:
       default:
         aliases: ["media-service-1"]
@@ -210,7 +210,7 @@ services:
 
   text-service:
     <<: *app
-    command: ["textservice_server"]
+    command: ["text-service"]
     networks:
       default:
         aliases: ["text-service-1"]
@@ -228,7 +228,7 @@ services:
 
   user-mention-service:
     <<: *app
-    command: ["usermention_server"]
+    command: ["user-mention-service"]
     networks:
       default:
         aliases: ["user-mention-service-1"]
@@ -242,7 +242,7 @@ services:
 
   url-shorten-service:
     <<: *app
-    command: ["url_shorten_server"]
+    command: ["url-shorten-service"]
     networks:
       default:
         aliases: ["url-shorten-service-1"]
@@ -254,7 +254,7 @@ services:
 
   register-user-service:
     <<: *app
-    command: ["register_user_server"]
+    command: ["register-user-service"]
     networks:
       default:
         aliases: ["register-user-service-1"]
@@ -268,7 +268,7 @@ services:
 
   frontend-service:
     <<: *app
-    command: ["frontend_server"]
+    command: ["frontend-service"]
     networks:
       default:
         aliases: ["frontend-service-1"]
@@ -286,7 +286,7 @@ services:
 
   compose-post-service:
     <<: *app
-    command: ["compose_post_server"]
+    command: ["compose-post-service"]
     networks:
       default:
         aliases: ["compose-post-service-1"]
@@ -330,14 +330,19 @@ services:
       - user-mention-service
       - url-shorten-service
 
-  # Load generator: waits for the stack, runs config/gen_config.json against the
-  # frontend and writes CSV traces to ./out/${MODE}/ on the host.
+  # Load generator: waits for the stack, runs config/${GEN_CONFIG} (default
+  # gen_config.json) against the frontend and writes CSV traces to
+  # ./out/${MODE}/ on the host. Re-run with `docker compose run --rm loadgen`.
   loadgen:
     <<: *app
     restart: "no"
-    command: ["sh", "-c", "socialnet_policy_probe --expect none --frontend http://frontend-service:8080 --wait-secs 180 --control 0 && exec socialnet_client_bench --gen-config /config/${GEN_CONFIG:-gen_config.json} --output-path /out --save-logs"]
+    command: ["client-bench"]
+    environment:
+      <<: *app-env
+      SOCIALNET_GEN_CONFIG: /etc/socialnet/${GEN_CONFIG:-gen_config.json}
+      SOCIALNET_WAIT_SECS: "180"
     depends_on:
       - frontend-service
     volumes:
-      - ./config:/config:ro
+      - ./config:/etc/socialnet:ro
       - ./out/${MODE:-baseline}:/out

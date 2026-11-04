@@ -6,10 +6,11 @@
 #   REGISTRY  local registry container name  (rpcstack-socialnet-registry)
 #   REG_PORT  host port of the registry      (first free port from 5601)
 #   MODE      baseline | masa                (baseline)
+#   NS        namespace                      (rpcstack-socialnet)
 CLUSTER=${CLUSTER:-rpcstack-socialnet}
 REGISTRY=${REGISTRY:-rpcstack-socialnet-registry}
 MODE=${MODE:-baseline}
-NS=${NS:-socialnet}
+NS=${NS:-rpcstack-socialnet}
 
 k8s_free_port() {
   local p
@@ -57,21 +58,35 @@ YAML
   fi
 }
 
+# Build (or, with PREBUILT=1, reuse the local rpcstack-socialnet:$MODE image,
+# e.g. one restored by `docker load` in CI) and push to the local registry.
 k8s_build_push() {
   local image; image=$(k8s_image)
-  echo "== building $image (MODE=$MODE)"
-  docker build --build-arg "MODE=$MODE" -t "$image" .
+  if [ "${PREBUILT:-0}" = 1 ]; then
+    echo "== tagging prebuilt rpcstack-socialnet:$MODE as $image"
+    docker tag "rpcstack-socialnet:$MODE" "$image"
+  else
+    echo "== building $image (MODE=$MODE)"
+    docker build --build-arg "MODE=$MODE" -t "$image" .
+  fi
   docker push "$image"
 }
 
 k8s_ctx() { echo "kind-$CLUSTER"; }
 kc() { kubectl --context "$(k8s_ctx)" -n "$NS" "$@"; }
 
+# Render k8s/base (baseline) or k8s/overlays/masa with kustomize, pointing the
+# image at the registry's real host port, and apply it. The ConfigMap reads
+# config/ outside the kustomization, hence --load-restrictor.
 k8s_deploy() {
-  local image; image=$(k8s_image)
-  kubectl --context "$(k8s_ctx)" create namespace "$NS" --dry-run=client -o yaml \
+  local overlay=k8s/base port; port=$(k8s_reg_port)
+  [ "$MODE" = masa ] && overlay=k8s/overlays/masa
+  echo "== apply $overlay"
+  kubectl --context "$(k8s_ctx)" kustomize --load-restrictor LoadRestrictionsNone "$overlay" \
+    | sed "s#localhost:5001/rpcstack-socialnet#localhost:$port/rpcstack-socialnet#g" \
     | kubectl --context "$(k8s_ctx)" apply -f - >/dev/null
-  sed "s#__IMAGE__#$image#g" k8s/socialnet.yaml | kc apply -f -
+  # Recreate the pods so a re-pushed tag is picked up.
+  kc delete pod -l tier=app --wait=false >/dev/null
   kc wait --for=condition=Available deployment --all --timeout=600s
 }
 
@@ -80,7 +95,7 @@ k8s_probe() {
   local expect=$1; shift
   kc delete pod probe --ignore-not-found >/dev/null
   kc run probe --rm -i --restart=Never --image="$(k8s_image)" --image-pull-policy=IfNotPresent \
-    --command -- socialnet_policy_probe --expect "$expect" --frontend http://frontend-service:8080 "$@"
+    -- probe --expect "$expect" "$@"
 }
 
 # Delete the load generator Job and wait until its pod is really gone, so the
@@ -95,7 +110,6 @@ k8s_delete_loadgen() {
 k8s_loadgen() {
   local cfg=$1 out=${2:-}
   k8s_delete_loadgen
-  kc create configmap loadgen-config --from-file=config --dry-run=client -o yaml | kc apply -f - >/dev/null
   sed "s#__IMAGE__#$(k8s_image)#g; s#__GEN_CONFIG__#$cfg#g" k8s/loadgen-job.yaml | kc apply -f -
   [ -n "$out" ] || return 0
   local pod i

@@ -1,0 +1,65 @@
+name: k8s-smoke
+
+on:
+  workflow_dispatch:
+  # Also on pull requests that touch the deployment, so layout changes are
+  # exercised before merge.
+  pull_request:
+    paths:
+      - ".github/workflows/k8s-smoke.yml"
+      - "Dockerfile"
+      - "docker/**"
+      - "k8s/**"
+      - "scripts/**"
+      - "config/**"
+  schedule:
+    - cron: "0 7 * * *"
+
+jobs:
+  image:
+    name: docker build (${{ matrix.mode }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, masa]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --build-arg MODE=${{ matrix.mode }} -t rpcstack-socialnet:${{ matrix.mode }} .
+      - run: docker save rpcstack-socialnet:${{ matrix.mode }} | gzip -1 > image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.mode }}
+          path: image.tar.gz
+          retention-days: 1
+
+  kind-smoke:
+    name: kind smoke (${{ matrix.mode }})
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, masa]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kind
+        run: |
+          curl -fsSLo kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+          chmod +x kind && sudo mv kind /usr/local/bin/kind
+      - uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.mode }}
+      - run: gunzip -c image.tar.gz | docker load
+      - name: kind smoke
+        run: PREBUILT=1 scripts/smoke-k8s.sh ${{ matrix.mode }}
+      - name: Upload smoke output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-k8s-${{ matrix.mode }}
+          path: out/
+      - name: Tear down
+        if: always()
+        run: scripts/kind-down.sh

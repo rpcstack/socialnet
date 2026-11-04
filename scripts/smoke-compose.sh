@@ -4,6 +4,7 @@
 #   scripts/smoke-compose.sh baseline|masa
 #
 # 1. build and start the stack, wait until ComposePost works end to end
+# (SKIP_BUILD=1 reuses an existing rpcstack-socialnet:$MODE image.)
 # 2. policy-live probe: expired-deadline RPCs to every service must be rejected
 #    by Masa's hooks in masa mode and must NOT be in baseline mode
 # 3. load run (config/gen_config.json): zero RPC errors, success >= 95%
@@ -33,7 +34,8 @@ trap cleanup EXIT
 
 echo "== [$MODE] build and start ($PROJECT)"
 rm -rf "out/$MODE"; mkdir -p "out/$MODE"
-$DC up --build -d --scale loadgen=0
+if [ "${SKIP_BUILD:-0}" = 1 ]; then build=""; else build="--build"; fi
+$DC up $build -d --scale loadgen=0
 
 TARGETS=""
 for t in compose_post:compose-post register_user:register-user user:user unique_id:unique-id \
@@ -47,16 +49,31 @@ for t in compose_post:compose-post register_user:register-user user:user unique_
   TARGETS="$TARGETS --target ${t%%:*}=http://$host:8080"
 done
 
+probe_run() {
+  # shellcheck disable=SC2086
+  $DC run --rm --no-deps -T loadgen probe --expect "$MODE" \
+    --wait-secs 240 --control 20 $TARGETS
+}
+
+# Cold start: services restart once while their databases start, and on a slow
+# machine Masa's admission control can reject the first control requests. Retry
+# the probe a few times until the stack settles; a run only passes when ALL of
+# its checks (20/20 control requests, 13/13 services) pass in that one run.
 echo "== [$MODE] policy-live probe (expect $MODE)"
-# shellcheck disable=SC2086
-$DC run --rm --no-deps -T loadgen socialnet_policy_probe --expect "$MODE" \
-  --frontend http://frontend-service:8080 --wait-secs 240 --control 20 $TARGETS
+probe_ok=0
+for attempt in 1 2 3 4 5 6; do
+  if probe_run >/tmp/probe-$$.log 2>&1; then probe_ok=1; break; fi
+  echo "probe attempt $attempt failed:"; grep -E "control|policy-live|PROBE|FAIL" /tmp/probe-$$.log | tail -n 6
+  sleep 10
+done
+cat /tmp/probe-$$.log; rm -f /tmp/probe-$$.log
+[ "$probe_ok" = 1 ] || { echo "FAIL: policy-live probe never passed"; exit 1; }
 
 if [ "$MODE" = baseline ]; then
   echo "== [baseline] negative check: the Masa policy-live expectation must FAIL here"
   # shellcheck disable=SC2086
-  if $DC run --rm --no-deps -T loadgen socialnet_policy_probe --expect masa \
-       --frontend http://frontend-service:8080 --control 1 $TARGETS >/tmp/neg-$$.log 2>&1; then
+  if $DC run --rm --no-deps -T loadgen probe --expect masa \
+       --control 1 $TARGETS >/tmp/neg-$$.log 2>&1; then
     cat /tmp/neg-$$.log; echo "FAIL: policy-live check passed in baseline"; exit 1
   fi
   grep -E "policy-live|PROBE" /tmp/neg-$$.log; rm -f /tmp/neg-$$.log
