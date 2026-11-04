@@ -4,6 +4,7 @@
 #   scripts/smoke-compose.sh baseline|masa
 #
 # 1. build and start the stack, wait until ComposePost works end to end
+# (SKIP_BUILD=1 reuses an existing rpcstack-socialnet:$MODE image.)
 # 2. policy-live probe: expired-deadline RPCs to every service must be rejected
 #    by Masa's hooks in masa mode and must NOT be in baseline mode
 # 3. load run (config/gen_config.json): zero RPC errors, success >= 95%
@@ -33,7 +34,8 @@ trap cleanup EXIT
 
 echo "== [$MODE] build and start ($PROJECT)"
 rm -rf "out/$MODE"; mkdir -p "out/$MODE"
-$DC up --build -d --scale loadgen=0
+if [ "${SKIP_BUILD:-0}" = 1 ]; then build=""; else build="--build"; fi
+$DC up $build -d --scale loadgen=0
 
 TARGETS=""
 for t in compose_post:compose-post register_user:register-user user:user unique_id:unique-id \
@@ -49,14 +51,14 @@ done
 
 echo "== [$MODE] policy-live probe (expect $MODE)"
 # shellcheck disable=SC2086
-$DC run --rm --no-deps -T loadgen socialnet_policy_probe --expect "$MODE" \
-  --frontend http://frontend-service:8080 --wait-secs 240 --control 20 $TARGETS
+$DC run --rm --no-deps -T loadgen probe --expect "$MODE" \
+  --wait-secs 240 --control 20 $TARGETS
 
 if [ "$MODE" = baseline ]; then
   echo "== [baseline] negative check: the Masa policy-live expectation must FAIL here"
   # shellcheck disable=SC2086
-  if $DC run --rm --no-deps -T loadgen socialnet_policy_probe --expect masa \
-       --frontend http://frontend-service:8080 --control 1 $TARGETS >/tmp/neg-$$.log 2>&1; then
+  if $DC run --rm --no-deps -T loadgen probe --expect masa \
+       --control 1 $TARGETS >/tmp/neg-$$.log 2>&1; then
     cat /tmp/neg-$$.log; echo "FAIL: policy-live check passed in baseline"; exit 1
   fi
   grep -E "policy-live|PROBE" /tmp/neg-$$.log; rm -f /tmp/neg-$$.log

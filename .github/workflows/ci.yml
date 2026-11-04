@@ -3,9 +3,14 @@ on:
   push:
     branches: [main, "port/**"]
   pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   check:
+    name: fmt, check and test (both modes)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,12 +27,44 @@ jobs:
       - run: ./scripts/test.sh
 
   image:
-    # Build both mode images to make sure the Dockerfile and compose file work.
+    # Build each mode's image once; the smoke job restores it, so no check
+    # builds twice and each stays well under ten minutes.
+    name: docker build (${{ matrix.mode }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         mode: [baseline, masa]
     steps:
       - uses: actions/checkout@v4
       - run: MODE=${{ matrix.mode }} docker compose config -q
       - run: docker build --build-arg MODE=${{ matrix.mode }} -t rpcstack-socialnet:${{ matrix.mode }} .
+      - run: docker save rpcstack-socialnet:${{ matrix.mode }} | gzip -1 > image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.mode }}
+          path: image.tar.gz
+          retention-days: 1
+
+  compose-smoke:
+    name: compose smoke (${{ matrix.mode }})
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, masa]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.mode }}
+      - run: gunzip -c image.tar.gz | docker load
+      - run: SKIP_BUILD=1 scripts/smoke-compose.sh ${{ matrix.mode }}
+      - name: Upload smoke output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-compose-${{ matrix.mode }}
+          path: out/

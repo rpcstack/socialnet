@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Kubernetes (kind) smoke test for one mode; same assertions as smoke-compose.sh.
+# Creates the cluster (scripts/kind-up.sh) and deploys (scripts/k8s-deploy.sh).
 #
 #   scripts/smoke-k8s.sh baseline|masa
 #
-# Set KEEP=1 to leave the cluster up afterwards.
+# Set KEEP=1 to leave the cluster up afterwards (otherwise it is deleted).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 MODE=${1:?usage: smoke-k8s.sh baseline|masa}
@@ -25,9 +26,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-k8s_cluster_up
-k8s_build_push
-k8s_deploy
+scripts/kind-up.sh
+scripts/k8s-deploy.sh "$MODE"
 
 TARGETS=""
 for t in compose_post:compose-post register_user:register-user user:user unique_id:unique-id \
