@@ -16,11 +16,13 @@ COPY crates ./crates
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/src/target,id=socialnet-target-${MODE} \
-    case "$MODE" in baseline|masa) ;; *) echo "MODE must be baseline or masa" >&2; exit 1;; esac \
-    && cargo build --release --locked -p socialnet --features "socialnet/${MODE}" \
-    && mkdir -p /out \
-    && find target/release -maxdepth 1 -type f -perm -u+x ! -name '*.so' ! -name '*.d' \
-         -exec cp {} /out/ \;
+    set -eu; \
+    case "$MODE" in baseline|masa) ;; *) echo "MODE must be baseline or masa" >&2; exit 1;; esac; \
+    jobs=$(nproc); [ "$jobs" -le 32 ] || jobs=32; \
+    ulimit -n 65536 2>/dev/null || true; \
+    cargo build --release --locked -j "$jobs" -p socialnet --features "socialnet/${MODE}"; \
+    mkdir -p /out; \
+    find target/release -maxdepth 1 -type f -perm -u+x ! -name '*.so' ! -name '*.d' -exec cp {} /out/ \;
 
 FROM debian:bookworm-slim
 ARG MODE=baseline

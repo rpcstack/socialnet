@@ -12,6 +12,10 @@ x-app: &app
     context: .
     args:
       MODE: ${MODE:-baseline}
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
   restart: unless-stopped
   environment: &app-env
     RUST_LOG: ${RUST_LOG:-info}
