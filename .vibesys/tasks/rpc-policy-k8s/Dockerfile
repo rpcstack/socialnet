@@ -5,7 +5,7 @@
 # It holds vibesys-evaluator (the Python package from PyPI, whose platform wheel bundles the core
 # vibesys-evaluator, loadgen and otelcapture), kubectl and buildctl, and the task's Go programs,
 # built from its evaluator/ module (whose go.mod requires the Go SDK at the same release,
-# v0.3.0-rc.2) into /task: rpc-policy-k8s (the benchmark and the accuracy check), oracle (judges
+# v0.3.0-rc.3) into /task: rpc-policy-k8s (the benchmark and the accuracy check), oracle (judges
 # a captured history offline), scope (writes or checks scope.json) and explore (the benchmark at
 # other loads). The evaluator's own image (ghcr.io/uw-syfi/vibesys-evaluator-microservices) holds
 # the same; it is not the base here because it is private, and the in-cluster rebuild of this
@@ -13,7 +13,7 @@
 
 # The one place the vibesys-evaluator release is pinned in this file (the PyPI version; the Go SDK
 # in evaluator/go.mod is the same release).
-ARG VIBESYS_EVALUATOR_VERSION=0.3.0rc2
+ARG VIBESYS_EVALUATOR_VERSION=0.3.0rc3
 ARG KUBECTL_VERSION=v1.34.0
 ARG KUBECTL_SHA256=cfda68cba5848bc3b6c6135ae2f20ba2c78de20059f68789c090166d6abc3e2c
 
