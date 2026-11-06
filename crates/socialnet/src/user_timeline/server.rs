@@ -4,7 +4,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use deadpool_redis::redis::cluster::ClusterClient;
-use deadpool_redis::redis::{Client as RedisClient, RedisError};
+use deadpool_redis::redis::aio::MultiplexedConnection;
+use deadpool_redis::redis::{Client as RedisClient, Cmd, FromRedisValue, RedisError};
 use mongodb::bson::{doc, Bson, Document};
 use mongodb::options::{FindOneAndUpdateOptions, FindOneOptions, ReturnDocument};
 use mongodb::{Client, Collection};
@@ -104,12 +105,58 @@ impl Args {
     }
 }
 
+/// A Redis client that keeps one multiplexed connection for all requests and opens another
+/// only when it broke. (A connection per command, as this service used to make, exhausts the
+/// ephemeral ports at a few hundred commands per second: "Cannot assign requested address".)
+struct SharedClient {
+    client: RedisClient,
+    conn: tokio::sync::Mutex<Option<MultiplexedConnection>>,
+}
+
+impl SharedClient {
+    fn new(client: RedisClient) -> Arc<Self> {
+        Arc::new(Self {
+            client,
+            conn: tokio::sync::Mutex::new(None),
+        })
+    }
+
+    async fn connection(&self) -> Result<MultiplexedConnection, Status> {
+        let mut slot = self.conn.lock().await;
+        if let Some(conn) = slot.as_ref() {
+            return Ok(conn.clone());
+        }
+        let conn = self
+            .client
+            .get_multiplexed_tokio_connection()
+            .await
+            .map_err(redis_to_status)?;
+        *slot = Some(conn.clone());
+        Ok(conn)
+    }
+
+    /// Runs an idempotent command; if the connection broke (Redis restarted), reconnects and
+    /// runs it once more.
+    async fn run<T: FromRedisValue>(&self, cmd: &Cmd) -> Result<T, Status> {
+        let mut conn = self.connection().await?;
+        match cmd.query_async(&mut conn).await {
+            Ok(value) => Ok(value),
+            Err(err) => {
+                warn!("Redis command failed ({}); reconnecting", err);
+                *self.conn.lock().await = None;
+                let mut conn = self.connection().await?;
+                cmd.query_async(&mut conn).await.map_err(redis_to_status)
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 enum RedisBackend {
-    Standalone(Arc<RedisClient>),
+    Standalone(Arc<SharedClient>),
     PrimaryReplica {
-        primary: Arc<RedisClient>,
-        replica: Arc<RedisClient>,
+        primary: Arc<SharedClient>,
+        replica: Arc<SharedClient>,
     },
     Cluster(Arc<ClusterClient>),
 }
@@ -142,13 +189,13 @@ impl RedisBackend {
                 let primary_client = RedisClient::open(primary.as_str())?;
                 let replica_client = RedisClient::open(replica.as_str())?;
                 Ok(RedisBackend::PrimaryReplica {
-                    primary: Arc::new(primary_client),
-                    replica: Arc::new(replica_client),
+                    primary: SharedClient::new(primary_client),
+                    replica: SharedClient::new(replica_client),
                 })
             }
             (_, _, Some(url)) => {
                 let client = RedisClient::open(url.as_str())?;
-                Ok(RedisBackend::Standalone(Arc::new(client)))
+                Ok(RedisBackend::Standalone(SharedClient::new(client)))
             }
             _ => Err("Redis configuration missing: provide USER_TIMELINE_REDIS_URL or primary/replica URLs".into()),
         }
@@ -186,54 +233,32 @@ impl RedisBackend {
     }
 }
 // ... [End of Redis helper functions] ...
-async fn zadd_nx(client: &RedisClient, key: &str, member: &str, score: f64) -> Result<(), Status> {
-    let mut conn = client
-        .get_multiplexed_tokio_connection()
-        .await
-        .map_err(redis_to_status)?;
+async fn zadd_nx(client: &SharedClient, key: &str, member: &str, score: f64) -> Result<(), Status> {
     let mut command = deadpool_redis::redis::cmd("ZADD");
     command.arg(key).arg("NX").arg(score).arg(member);
-    command
-        .query_async(&mut conn)
-        .await
-        .map_err(redis_to_status)
+    client.run::<()>(&command).await
 }
 async fn zadd_all(
-    client: &RedisClient,
+    client: &SharedClient,
     key: &str,
     entries: &[(String, f64)],
 ) -> Result<(), Status> {
-    let mut conn = client
-        .get_multiplexed_tokio_connection()
-        .await
-        .map_err(redis_to_status)?;
     let mut command = deadpool_redis::redis::cmd("ZADD");
     command.arg(key);
     for (member, score) in entries {
         command.arg(*score).arg(member);
     }
-    command
-        .query_async(&mut conn)
-        .await
-        .map_err(redis_to_status)
+    client.run::<()>(&command).await
 }
 async fn zrevrange(
-    client: &RedisClient,
+    client: &SharedClient,
     key: &str,
     start: i64,
     stop: i64,
 ) -> Result<Vec<String>, Status> {
-    let mut conn = client
-        .get_multiplexed_tokio_connection()
-        .await
-        .map_err(redis_to_status)?;
-    deadpool_redis::redis::cmd("ZREVRANGE")
-        .arg(key)
-        .arg(start)
-        .arg(stop)
-        .query_async(&mut conn)
-        .await
-        .map_err(redis_to_status)
+    let mut command = deadpool_redis::redis::cmd("ZREVRANGE");
+    command.arg(key).arg(start).arg(stop);
+    client.run::<Vec<String>>(&command).await
 }
 async fn zadd_nx_cluster(
     client: &ClusterClient,

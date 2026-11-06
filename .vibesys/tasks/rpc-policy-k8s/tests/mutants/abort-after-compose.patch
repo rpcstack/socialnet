@@ -1,0 +1,77 @@
+diff -ruN a/policy/src/compose_guard.rs b/policy/src/compose_guard.rs
+--- a/policy/src/compose_guard.rs	1970-01-01 00:00:00.000000000 +0000
++++ b/policy/src/compose_guard.rs	2026-11-06 17:09:11.817969700 +0000
+@@ -0,0 +1,51 @@
++//! MUTANT for the task's accuracy check (tests/mutants), not a policy to keep: a "deadline
++//! guard" in the frontend that fails one ComposePost child in three with DEADLINE_EXCEEDED
++//! after its answer arrived, i.e. after the post was stored and delivered. The client gets a 504
++//! for a post that was made.
++
++use std::sync::atomic::{AtomicU64, Ordering};
++
++use rpcstack::{ChildOutcome, ChildState, Extensions, MissingDependency, Module, ModuleServer, ServerInit, WireIn};
++use tonic::{CowGrpcMethod, Status};
++
++static COMPOSES: AtomicU64 = AtomicU64::new(0);
++
++#[derive(Debug)]
++pub struct ComposeGuardServer;
++
++impl ModuleServer for ComposeGuardServer {
++    fn new(_init: &mut ServerInit) -> Result<Self, MissingDependency> {
++        Ok(Self)
++    }
++}
++
++#[derive(Debug)]
++pub struct ComposeGuard;
++
++impl Module for ComposeGuard {
++    type Server = ComposeGuardServer;
++    const NAME: &'static str = "compose_guard";
++    type Wire = ();
++    const POLL_HOOKS: bool = false;
++
++    fn new(_method: &CowGrpcMethod, _server: &ComposeGuardServer, _wire: &WireIn<'_>, _ext: &mut Extensions) -> Self {
++        Self
++    }
++
++    fn after_child_rpc<T>(
++        &self,
++        child_method: &CowGrpcMethod,
++        outcome: ChildOutcome<'_, T>,
++        _response_wire: &WireIn<'_>,
++        _child: &ChildState,
++        _ext: &Extensions,
++    ) -> Result<(), Status> {
++        if child_method.method() == "ComposePost"
++            && matches!(outcome.sent(), Some(Ok(_)))
++            && COMPOSES.fetch_add(1, Ordering::Relaxed) % 3 == 0
++        {
++            return Err(Status::deadline_exceeded("compose exceeded its time budget"));
++        }
++        Ok(())
++    }
++}
+diff -ruN a/policy/src/lib.rs b/policy/src/lib.rs
+--- a/policy/src/lib.rs	2026-11-06 17:09:11.813969685 +0000
++++ b/policy/src/lib.rs	2026-11-06 17:09:11.813969685 +0000
+@@ -14,5 +14,6 @@
+ #[path = "../queue/queue.rs"]
+ pub mod queue;
+ pub mod stack;
++pub mod compose_guard;
+ 
+ pub use stack::{Hooks, Stack};
+diff -ruN a/policy/src/stack.rs b/policy/src/stack.rs
+--- a/policy/src/stack.rs	2026-11-06 17:09:11.813969685 +0000
++++ b/policy/src/stack.rs	2026-11-06 17:09:11.817969700 +0000
+@@ -17,7 +17,7 @@
+ use rpcstack::policy_stack;
+ 
+ /// The module stack: empty.
+-pub type Stack = policy_stack![];
++pub type Stack = policy_stack![crate::compose_guard::ComposeGuard];
+ 
+ /// The hooks every generated client and server stub runs.
+ pub type Hooks = rpcstack_tonic::PolicyHooks<Stack>;
