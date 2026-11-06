@@ -52,7 +52,7 @@ done
 
 probe_run() {
   # shellcheck disable=SC2086
-  k8s_probe --frontend http://frontend-service:8080 --wait-secs 240 --control 20 $TARGETS
+  k8s_probe --wait-secs 240 --control 20 $TARGETS
 }
 
 # Cold start: services restart once while their databases start. Retry the
@@ -62,7 +62,8 @@ echo "== [$MODE] stack probe"
 probe_ok=0
 for attempt in 1 2 3 4 5 6; do
   if probe_run >/tmp/probe-$$.log 2>&1; then probe_ok=1; break; fi
-  echo "probe attempt $attempt failed:"; grep -E "control|PROBE|FAIL|->" /tmp/probe-$$.log | tail -n 8
+  tail -n 5 /tmp/probe-$$.log
+  echo "probe attempt $attempt failed:"; { grep -E "control|PROBE|FAIL|->" /tmp/probe-$$.log || true; } | tail -n 8
   sleep 10
 done
 cat /tmp/probe-$$.log; rm -f /tmp/probe-$$.log

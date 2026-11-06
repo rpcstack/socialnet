@@ -116,9 +116,19 @@ k8s_deploy() {
 # k8s_run <name> <entrypoint args...>: run the image's entrypoint as a one-off
 # pod and stream its output (the pod always re-pulls the tag).
 k8s_run() {
-  local name=$1; shift
-  kc delete pod "$name" --ignore-not-found >/dev/null
-  kc run "$name" --rm -i --restart=Never --image="$(k8s_image)" --image-pull-policy=Always -- "$@"
+  local name=$1 phase i; shift
+  kc delete pod "$name" --ignore-not-found --wait >/dev/null
+  kc run "$name" --restart=Never --image="$(k8s_image)" --image-pull-policy=Always -- "$@" >/dev/null
+  # Wait for the pod to finish, then read its whole log (`kubectl run -i` can
+  # lose the output of a pod that exits quickly).
+  for i in $(seq 1 1800); do
+    phase=$(kc get pod "$name" -o jsonpath='{.status.phase}' 2>/dev/null || true)
+    case "$phase" in Succeeded|Failed) break;; esac
+    sleep 2
+  done
+  kc logs "$name" 2>&1
+  kc delete pod "$name" --wait=false >/dev/null 2>&1 || true
+  [ "$phase" = Succeeded ]
 }
 
 # k8s_probe [probe args...]: run the stack probe as a one-off pod.

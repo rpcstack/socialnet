@@ -63,7 +63,7 @@ echo "== [$MODE] stack probe"
 probe_ok=0
 for attempt in 1 2 3 4 5 6; do
   if probe_run >/tmp/probe-$$.log 2>&1; then probe_ok=1; break; fi
-  echo "probe attempt $attempt failed:"; grep -E "control|PROBE|FAIL|->" /tmp/probe-$$.log | tail -n 8
+  echo "probe attempt $attempt failed:"; { grep -E "control|PROBE|FAIL|->" /tmp/probe-$$.log || true; } | tail -n 8
   sleep 10
 done
 cat /tmp/probe-$$.log; rm -f /tmp/probe-$$.log

@@ -103,6 +103,7 @@ correctness oracle comparing answers must know):
   between runs; `login` tokens embed the time. Nothing else in the services is random;
   the load generator's request stream is seeded (`Repeats`, per-request
   independent streams).
+* **No service fails at random**: a login with the right password always succeeds (there is no probabilistic check); the only randomness is ids, salts and shortened-URL suffixes.
 * **Passwords** are salted SHA-256, like DSB; a failed login is a gRPC
   `UNAUTHENTICATED` (500 here), an unknown user `NOT_FOUND` (500).
 * **Follow** by id does not check that the users exist; by username it does
