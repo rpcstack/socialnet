@@ -9,8 +9,8 @@ use mongodb::bson::{doc, Bson, Document};
 use mongodb::options::{FindOneAndUpdateOptions, FindOneOptions, ReturnDocument};
 use mongodb::{Client, Collection};
 
-use masa::transport::LoadBalancedChannel;
 use tonic::async_trait;
+use tonic::transport::Channel;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 use tracing::{error, info, warn};
@@ -297,8 +297,8 @@ fn redis_to_status(err: RedisError) -> Status {
 pub struct UserTimelineServiceImpl {
     collection: Collection<Document>,
     redis: RedisBackend,
-    // --- CHANGE 4: Use LoadBalancedChannel instead of generic Channel ---
-    post_storage_client: PostStorageServiceClient<LoadBalancedChannel>,
+    // --- CHANGE 4: Use Channel instead of generic Channel ---
+    post_storage_client: PostStorageServiceClient<Channel>,
 }
 
 impl UserTimelineServiceImpl {
@@ -316,8 +316,8 @@ impl UserTimelineServiceImpl {
 
         let redis = RedisBackend::from_args(&args)?;
 
-        // --- CHANGE 5: Initialize using LoadBalancedChannel ---
-        let channel = LoadBalancedChannel::new(
+        // --- CHANGE 5: Initialize using Channel ---
+        let channel = socialnet::connect(
             args.post_storage_ip.clone(),
             args.post_storage_port,
             args.post_storage_replicas as u8,

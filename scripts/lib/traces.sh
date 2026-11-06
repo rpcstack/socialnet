@@ -10,9 +10,9 @@
 #   /EarlyReturn*  rejected by the policy's deadline/admission guards
 #   anything else  an RPC error (transport failure, application error, ...)
 #
-# Fails on any RPC error, on a success rate
-# below the threshold, and, with --expect-early-returns, when the policy never
-# rejected anything (used for the overload run in Masa mode).
+# Fails on any RPC error and on a success rate below the threshold, and, with
+# --expect-early-returns, when a policy never rejected anything (for a policy
+# that sheds load).
 check_traces() {
   local dir=$1 min=$2 expect_er=${3:-}
   local files

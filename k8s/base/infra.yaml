@@ -16,7 +16,7 @@ spec:
       containers:
       - name: post-storage-mongo
         image: mongo:7.0
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 27017
         readinessProbe:
@@ -49,7 +49,7 @@ spec:
       containers:
       - name: post-storage-memcached
         image: memcached:1.6
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 11211
         readinessProbe:
@@ -82,7 +82,7 @@ spec:
       containers:
       - name: user-timeline-mongo
         image: mongo:7.0
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 27017
         readinessProbe:
@@ -115,7 +115,7 @@ spec:
       containers:
       - name: user-timeline-redis
         image: redis:7.2
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 6379
         readinessProbe:
@@ -148,7 +148,7 @@ spec:
       containers:
       - name: home-timeline-redis
         image: redis:7.2
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 6379
         readinessProbe:
@@ -181,7 +181,7 @@ spec:
       containers:
       - name: write-home-timeline-redis
         image: redis:7.2
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 6379
         readinessProbe:
@@ -214,7 +214,7 @@ spec:
       containers:
       - name: user-mongo
         image: mongo:7.0
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 27017
         readinessProbe:
@@ -247,7 +247,7 @@ spec:
       containers:
       - name: user-redis
         image: redis:7.2
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 6379
         readinessProbe:
@@ -280,7 +280,7 @@ spec:
       containers:
       - name: social-graph-mongo
         image: mongo:7.0
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 27017
         readinessProbe:
@@ -313,7 +313,7 @@ spec:
       containers:
       - name: social-graph-redis
         image: redis:7.2
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 6379
         readinessProbe:
@@ -346,7 +346,7 @@ spec:
       containers:
       - name: user-mention-mongo
         image: mongo:7.0
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 27017
         readinessProbe:
@@ -379,7 +379,7 @@ spec:
       containers:
       - name: user-mention-memcached
         image: memcached:1.6
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 11211
         readinessProbe:
@@ -412,7 +412,7 @@ spec:
       containers:
       - name: url-shorten-mongo
         image: mongo:7.0
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 27017
         readinessProbe:
@@ -445,7 +445,7 @@ spec:
       containers:
       - name: rabbitmq
         image: rabbitmq:3.13
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 5672
         readinessProbe:

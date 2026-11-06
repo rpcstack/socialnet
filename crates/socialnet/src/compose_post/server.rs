@@ -5,10 +5,10 @@ use std::net::SocketAddr;
 
 use chrono::Utc;
 use log::info;
-use masa::transport::LoadBalancedChannel;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tonic::async_trait;
+use tonic::transport::Channel;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 
@@ -229,15 +229,15 @@ impl Args {
 
 #[derive(Clone)]
 pub struct ComposePostServiceImpl {
-    post_storage: LoadBalancedChannel,
-    user_timeline: LoadBalancedChannel,
-    home_timeline: LoadBalancedChannel,
-    user_service: LoadBalancedChannel,
-    unique_id: LoadBalancedChannel,
-    media_service: LoadBalancedChannel,
-    text_service: LoadBalancedChannel,
-    user_mention: LoadBalancedChannel,
-    url_shorten: LoadBalancedChannel,
+    post_storage: Channel,
+    user_timeline: Channel,
+    home_timeline: Channel,
+    user_service: Channel,
+    unique_id: Channel,
+    media_service: Channel,
+    text_service: Channel,
+    user_mention: Channel,
+    url_shorten: Channel,
 }
 
 impl ComposePostServiceImpl {
@@ -586,8 +586,8 @@ async fn create_channel_for_service(
     ip: String,
     port: u16,
     replicas: u8, // We rename 'replicas' to '_replicas' to ignore the value
-) -> Result<LoadBalancedChannel, Box<dyn std::error::Error>> {
-    Ok(LoadBalancedChannel::new(ip, port, replicas).await)
+) -> Result<Channel, Box<dyn std::error::Error>> {
+    Ok(socialnet::connect(ip, port, replicas).await)
 }
 
 fn extract_usernames(text: &str) -> Vec<String> {

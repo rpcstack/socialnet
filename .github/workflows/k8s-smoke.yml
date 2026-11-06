@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [baseline, masa]
+        mode: [baseline, policy]
     steps:
       - uses: actions/checkout@v4
       - run: docker build --build-arg MODE=${{ matrix.mode }} -t rpcstack-socialnet:${{ matrix.mode }} .
@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [baseline, masa]
+        mode: [baseline, policy]
     steps:
       - uses: actions/checkout@v4
       - name: Install kind

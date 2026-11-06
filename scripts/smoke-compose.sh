@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # Compose smoke test for one mode.
 #
-#   scripts/smoke-compose.sh baseline|masa
+#   scripts/smoke-compose.sh baseline|policy
 #
 # 1. build and start the stack, wait until ComposePost works end to end
 # (SKIP_BUILD=1 reuses an existing rpcstack-socialnet:$MODE image.)
-# 2. policy-live probe: expired-deadline RPCs to every service must be rejected
-#    by Masa's hooks in masa mode and must NOT be in baseline mode
-# 3. load run (config/gen_config.json): zero RPC errors, success >= 95%
-# 4. masa mode only: short overload run must trigger early returns, then a
-#    normal run must recover to >= 95% success
+# 2. stack probe: control ComposePosts and one ordinary request to every service
+# 3. HTTP API check: every route of the HTTP frontend answers with the status and
+#    JSON shape of DeathStarBench's nginx/lua gateway
+# 4. load run (config/gen_config.json): zero RPC errors, success >= 95%
+# The initial no-op `policy` mode is judged exactly like `baseline`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib/traces.sh
 
-MODE=${1:?usage: smoke-compose.sh baseline|masa}
-case "$MODE" in baseline|masa) ;; *) echo "mode must be baseline or masa" >&2; exit 2;; esac
+MODE=${1:?usage: smoke-compose.sh baseline|policy}
+case "$MODE" in baseline|policy) ;; *) echo "mode must be baseline or policy" >&2; exit 2;; esac
 export MODE
 MIN_SUCCESS=${MIN_SUCCESS:-95}
 PROJECT=rpcstack-socialnet-$MODE
@@ -34,8 +34,10 @@ trap cleanup EXIT
 
 echo "== [$MODE] build and start ($PROJECT)"
 rm -rf "out/$MODE"; mkdir -p "out/$MODE"
-if [ "${SKIP_BUILD:-0}" = 1 ]; then build=""; else build="--build"; fi
-$DC up $build -d --scale loadgen=0
+# Every service shares one image: build it once (parallel builds of the same tag
+# collide), then start the stack from it.
+if [ "${SKIP_BUILD:-0}" != 1 ]; then $DC build frontend-service; fi
+$DC up -d --scale loadgen=0
 
 TARGETS=""
 for t in compose_post:compose-post register_user:register-user user:user unique_id:unique-id \
@@ -51,34 +53,26 @@ done
 
 probe_run() {
   # shellcheck disable=SC2086
-  $DC run --rm --no-deps -T loadgen probe --expect "$MODE" \
-    --wait-secs 240 --control 20 $TARGETS
+  $DC run --rm --no-deps -T loadgen probe --wait-secs 240 --control 20 $TARGETS
 }
 
-# Cold start: services restart once while their databases start, and on a slow
-# machine Masa's admission control can reject the first control requests. Retry
-# the probe a few times until the stack settles; a run only passes when ALL of
-# its checks (20/20 control requests, 13/13 services) pass in that one run.
-echo "== [$MODE] policy-live probe (expect $MODE)"
+# Cold start: services restart once while their databases start. Retry the
+# probe a few times until the stack settles; a run only passes when ALL of its
+# checks (20/20 control requests, 13/13 services) pass in that one run.
+echo "== [$MODE] stack probe"
 probe_ok=0
 for attempt in 1 2 3 4 5 6; do
   if probe_run >/tmp/probe-$$.log 2>&1; then probe_ok=1; break; fi
-  echo "probe attempt $attempt failed:"; grep -E "control|policy-live|PROBE|FAIL" /tmp/probe-$$.log | tail -n 6
+  echo "probe attempt $attempt failed:"; grep -E "control|PROBE|FAIL|->" /tmp/probe-$$.log | tail -n 8
   sleep 10
 done
 cat /tmp/probe-$$.log; rm -f /tmp/probe-$$.log
-[ "$probe_ok" = 1 ] || { echo "FAIL: policy-live probe never passed"; exit 1; }
+[ "$probe_ok" = 1 ] || { echo "FAIL: stack probe never passed"; exit 1; }
 
-if [ "$MODE" = baseline ]; then
-  echo "== [baseline] negative check: the Masa policy-live expectation must FAIL here"
-  # shellcheck disable=SC2086
-  if $DC run --rm --no-deps -T loadgen probe --expect masa \
-       --control 1 $TARGETS >/tmp/neg-$$.log 2>&1; then
-    cat /tmp/neg-$$.log; echo "FAIL: policy-live check passed in baseline"; exit 1
-  fi
-  grep -E "policy-live|PROBE" /tmp/neg-$$.log; rm -f /tmp/neg-$$.log
-  echo "policy-live check failed in baseline, as required"
-fi
+echo "== [$MODE] HTTP API check"
+$DC run --rm --no-deps -T loadgen http-check --wait-secs 240 \
+  | tee "out/$MODE/http-check.txt"
+grep -q "HTTP CHECK PASS" "out/$MODE/http-check.txt" || { echo "FAIL: HTTP API check"; exit 1; }
 
 run_load() {  # run_load <gen-config-file>
   rm -f "out/$MODE"/r*_*.csv
@@ -89,15 +83,4 @@ run_load() {  # run_load <gen-config-file>
 echo "== [$MODE] load run (config/gen_config.json)"
 run_load gen_config.json
 check_traces "out/$MODE" "$MIN_SUCCESS"
-
-if [ "$MODE" = masa ]; then
-  echo "== [masa] overload run (config/gen_config.overload.json)"
-  run_load gen_config.overload.json
-  # Overload may produce client timeouts and misses; what matters is that the
-  # policy shed load (early returns) and that there were no transport errors.
-  OVERLOAD=1 check_traces "out/$MODE" 0 --expect-early-returns
-  echo "== [masa] recovery run (config/gen_config.json)"
-  run_load gen_config.json
-  check_traces "out/$MODE" "$MIN_SUCCESS"
-fi
 echo "SMOKE PASS (compose, $MODE)"

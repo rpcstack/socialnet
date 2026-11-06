@@ -4,6 +4,10 @@ package frontend;
 
 import "compose_post.proto";
 import "register_user.proto";
+import "user.proto";
+import "social_graph.proto";
+import "user_timeline.proto";
+import "home_timeline.proto";
 
 message PingRequest {
   string message = 1;
@@ -17,4 +21,18 @@ service FrontendService {
   rpc Ping(PingRequest) returns (PingResponse);
   rpc ComposePost(compose_post.ComposePostRequest) returns (compose_post.ComposePostResponse);
   rpc RegisterUser(register_user.RegisterUserRequest) returns (register_user.RegisterUserResponse);
+
+  // Added for the HTTP frontend (src/frontend/http.rs); the load generator
+  // (client_bench) does not use them. Each forwards to the service that owns
+  // the operation, keeping the request's metadata (deadline, priority).
+  rpc RegisterUserWithId(user.RegisterUserWithIdRequest) returns (user.RegisterUserWithIdResponse);
+  rpc Login(user.LoginRequest) returns (user.LoginResponse);
+  rpc Follow(social_graph.FollowRequest) returns (social_graph.FollowResponse);
+  rpc Unfollow(social_graph.UnfollowRequest) returns (social_graph.UnfollowResponse);
+  rpc FollowWithUsername(social_graph.FollowWithUsernameRequest) returns (social_graph.FollowWithUsernameResponse);
+  rpc UnfollowWithUsername(social_graph.UnfollowWithUsernameRequest) returns (social_graph.UnfollowWithUsernameResponse);
+  rpc GetFollowers(social_graph.GetFollowersRequest) returns (social_graph.GetFollowersResponse);
+  rpc GetFollowees(social_graph.GetFolloweesRequest) returns (social_graph.GetFolloweesResponse);
+  rpc ReadUserTimeline(user_timeline.ReadUserTimelineRequest) returns (user_timeline.ReadUserTimelineResponse);
+  rpc ReadHomeTimeline(home_timeline.ReadHomeTimelineRequest) returns (home_timeline.ReadHomeTimelineResponse);
 }

@@ -2,15 +2,21 @@
 # Helpers for the kind + local-registry deployment. Source this file.
 #
 # Defaults are overridable through the environment:
-#   CLUSTER   kind cluster name              (rpcstack-socialnet)
-#   REGISTRY  local registry container name  (rpcstack-socialnet-registry)
-#   REG_PORT  host port of the registry      (first free port from 5601)
-#   MODE      baseline | masa                (baseline)
-#   NS        namespace                      (rpcstack-socialnet)
-CLUSTER=${CLUSTER:-rpcstack-socialnet}
+#   KIND_CLUSTER        kind cluster name (also CLUSTER)  (rpcstack-socialnet)
+#   REGISTRY            local registry container name     (rpcstack-socialnet-registry)
+#   REG_PORT            host port of the registry         (first free port from 5601)
+#   MODE                baseline | policy                 (baseline)
+#   SOCIALNET_NAMESPACE namespace (also NS); the whole stack is created in it
+#                                                         (rpcstack-socialnet)
+#   SOCIALNET_IMAGE_NAME repository name in the registry  (rpcstack-socialnet)
+#   BUILDKIT_ADDR       e.g. tcp://127.0.0.1:1234: build and push with `buildctl`
+#                       against that BuildKit daemon instead of `docker build` +
+#                       `docker push` (uses a local buildctl, else $BUILDCTL_IMAGE)
+CLUSTER=${KIND_CLUSTER:-${CLUSTER:-rpcstack-socialnet}}
 REGISTRY=${REGISTRY:-rpcstack-socialnet-registry}
 MODE=${MODE:-baseline}
-NS=${NS:-rpcstack-socialnet}
+NS=${SOCIALNET_NAMESPACE:-${NS:-rpcstack-socialnet}}
+IMAGE_NAME=${SOCIALNET_IMAGE_NAME:-rpcstack-socialnet}
 
 k8s_free_port() {
   local p
@@ -28,7 +34,7 @@ k8s_reg_port() {
   if [ -n "$existing" ]; then echo "$existing"; else k8s_free_port; fi
 }
 
-k8s_image() { echo "localhost:$(k8s_reg_port)/rpcstack-socialnet:$MODE"; }
+k8s_image() { echo "localhost:$(k8s_reg_port)/$IMAGE_NAME:$MODE"; }
 
 k8s_cluster_up() {
   local port; port=$(k8s_reg_port)
@@ -65,38 +71,58 @@ k8s_build_push() {
   if [ "${PREBUILT:-0}" = 1 ]; then
     echo "== tagging prebuilt rpcstack-socialnet:$MODE as $image"
     docker tag "rpcstack-socialnet:$MODE" "$image"
+    docker push "$image"
+  elif [ -n "${BUILDKIT_ADDR:-}" ]; then
+    echo "== building $image (MODE=$MODE) with BuildKit at $BUILDKIT_ADDR"
+    local opts=(--frontend dockerfile.v0 --opt "build-arg:MODE=$MODE"
+      --output "type=image,name=$image,push=true,registry.insecure=true")
+    if command -v buildctl > /dev/null; then
+      buildctl --addr "$BUILDKIT_ADDR" build --local "context=$PWD" --local "dockerfile=$PWD" "${opts[@]}"
+    else
+      docker run --rm --network host --entrypoint buildctl -v "$PWD:/ctx:ro" \
+        "${BUILDCTL_IMAGE:-moby/buildkit:v0.22.0}" --addr "$BUILDKIT_ADDR" build \
+        --local context=/ctx --local dockerfile=/ctx "${opts[@]}"
+    fi
   else
     echo "== building $image (MODE=$MODE)"
     docker build --build-arg "MODE=$MODE" -t "$image" .
+    docker push "$image"
   fi
-  docker push "$image"
 }
 
 k8s_ctx() { echo "kind-$CLUSTER"; }
 kc() { kubectl --context "$(k8s_ctx)" -n "$NS" "$@"; }
 
-# Render k8s/base (baseline) or k8s/overlays/masa with kustomize, pointing the
-# image at the registry's real host port, and apply it. The ConfigMap reads
+# Render k8s/base (baseline) or k8s/overlays/<mode> with kustomize, re-rooted in
+# $NS (which also renames the Namespace object) and pointing the image at the
+# registry's real host port and repository, and apply it. The ConfigMap reads
 # config/ outside the kustomization, hence --load-restrictor.
 k8s_deploy() {
-  local overlay=k8s/base port; port=$(k8s_reg_port)
-  [ "$MODE" = masa ] && overlay=k8s/overlays/masa
-  echo "== apply $overlay"
-  kubectl --context "$(k8s_ctx)" kustomize --load-restrictor LoadRestrictionsNone "$overlay" \
-    | sed "s#localhost:5001/rpcstack-socialnet#localhost:$port/rpcstack-socialnet#g" \
+  local overlay="$PWD/k8s/base" port render; port=$(k8s_reg_port)
+  [ "$MODE" = baseline ] || overlay="$PWD/k8s/overlays/$MODE"
+  render=$(mktemp -d)
+  printf 'apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nnamespace: %s\nresources:\n  - %s\n' \
+    "$NS" "$(realpath --relative-to="$render" "$overlay")" > "$render/kustomization.yaml"
+  echo "== apply $overlay (namespace $NS)"
+  kubectl --context "$(k8s_ctx)" kustomize --load-restrictor LoadRestrictionsNone "$render" \
+    | sed "s#localhost:5001/rpcstack-socialnet#localhost:$port/$IMAGE_NAME#g" \
     | kubectl --context "$(k8s_ctx)" apply -f - >/dev/null
+  rm -rf "$render"
   # Recreate the pods so a re-pushed tag is picked up.
   kc delete pod -l tier=app --wait=false >/dev/null
   kc wait --for=condition=Available deployment --all --timeout=600s
 }
 
-# k8s_probe <expect> [probe args...]: run the policy probe as a one-off pod.
-k8s_probe() {
-  local expect=$1; shift
-  kc delete pod probe --ignore-not-found >/dev/null
-  kc run probe --rm -i --restart=Never --image="$(k8s_image)" --image-pull-policy=IfNotPresent \
-    -- probe --expect "$expect" "$@"
+# k8s_run <name> <entrypoint args...>: run the image's entrypoint as a one-off
+# pod and stream its output (the pod always re-pulls the tag).
+k8s_run() {
+  local name=$1; shift
+  kc delete pod "$name" --ignore-not-found >/dev/null
+  kc run "$name" --rm -i --restart=Never --image="$(k8s_image)" --image-pull-policy=Always -- "$@"
 }
+
+# k8s_probe [probe args...]: run the stack probe as a one-off pod.
+k8s_probe() { k8s_run probe probe "$@"; }
 
 # Delete the load generator Job and wait until its pod is really gone, so the
 # next run cannot pick up the previous pod or its /out/DONE marker.

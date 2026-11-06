@@ -68,19 +68,10 @@ mod tests {
     use tokio::sync::oneshot;
     use tonic::transport::Server;
 
-    /// Wrap a request with a Masa context (SLO and deadline), as the gateway
-    /// does for real traffic. In Masa mode the server hooks expect it.
+    /// A request with a generous SLO, as the gateway stamps on real traffic.
     fn with_ctx<T>(msg: T) -> tonic::Request<T> {
-        use app_utils::timing::time_now;
-        use masa::{ContextBuilder, MasaRequestExt};
-        let slo = 10_000_000;
-        let now = time_now();
-        let ctx = ContextBuilder::new("test".to_string(), 0)
-            .slo(slo)
-            .gateway_entry(now)
-            .deadline(now + slo)
-            .build();
-        tonic::Request::new(msg).with_masa_context(&ctx)
+        app_utils::root_context::RootContext::new("test", std::time::Duration::from_secs(10))
+            .attach(tonic::Request::new(msg))
     }
 
     async fn start_test_server() -> (String, oneshot::Sender<()>) {

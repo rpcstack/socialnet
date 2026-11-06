@@ -10,13 +10,12 @@ use tonic::transport::Channel;
 use tonic::Response;
 use tonic::Status;
 
+use app_utils::root_context::RootContext;
 use app_utils::{
     load_gen::{load_gen_main, Client, Handler, HandlerOuter, LoadGenArgs, RequestType},
     timing::time_now,
 };
 use gen::{get_compose_post_request, get_register_user_request};
-use masa::MasaRequestExt;
-use masa::{ContextBuilder, RootContext};
 use socialnet::frontend;
 use socialnet::frontend::frontend_service_client::FrontendServiceClient;
 
@@ -30,21 +29,9 @@ impl Client for SocialnetClient {
     }
 
     async fn ping(client: &mut Self::FrontendClient) -> Result<(), tonic::Status> {
-        let ctx = {
-            let slo = 1_000_000;
-            let start_at = time_now();
-            let deadline = start_at + slo;
-            let req_id = 0;
-            ContextBuilder::new("ping".to_string(), req_id)
-                .slo(slo)
-                .gateway_entry(start_at)
-                .deadline(deadline)
-                .build()
-        };
         let request = tonic::Request::new(frontend::PingRequest {
             message: "ping".to_string(),
-        })
-        .with_masa_context(&ctx);
+        });
         client.ping(request).await.map(|_| ())
     }
 }
