@@ -1,8 +1,8 @@
 use std::env;
 use std::net::SocketAddr;
 
-use masa::transport::LoadBalancedChannel;
 use tonic::async_trait;
+use tonic::transport::Channel;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 
@@ -41,12 +41,12 @@ impl Args {
 
 #[derive(Clone)]
 pub struct RegisterUserServiceImpl {
-    user_service: LoadBalancedChannel,
+    user_service: Channel,
 }
 
 impl RegisterUserServiceImpl {
     pub async fn new(args: &Args) -> Result<Self, Box<dyn std::error::Error>> {
-        let user_service = LoadBalancedChannel::new(
+        let user_service = socialnet::connect(
             args.user_service_ip.clone(),
             args.user_service_port,
             args.user_service_replicas,

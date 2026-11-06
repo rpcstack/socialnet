@@ -1,0 +1,15 @@
+{
+  "frontend": {
+    "sloMs": {
+      "composePost": 200,
+      "registerUser": 200,
+      "readUserTimeline": 200,
+      "readHomeTimeline": 200,
+      "follow": 200,
+      "unfollow": 200,
+      "login": 200,
+      "getFollowers": 200,
+      "getFollowees": 200
+    }
+  }
+}

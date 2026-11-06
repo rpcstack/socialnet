@@ -16,7 +16,7 @@ spec:
       containers:
       - name: loadgen
         image: __IMAGE__
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         command: ["sh", "-c"]
         args:
         - >-

@@ -405,6 +405,11 @@ impl PostStorageServiceImpl {
                 }
                 Ok(result)
             }
+            // `get_multi` answers NOT_FOUND (an error) when none of the keys is
+            // cached; that is a plain cache miss, read from MongoDB next.
+            Err(async_memcached::Error::Protocol(async_memcached::Status::NotFound)) => {
+                Ok(HashMap::new())
+            }
             Err(err) => Err(Status::internal(format!("Memcached mget failed: {}", err))),
         }
     }

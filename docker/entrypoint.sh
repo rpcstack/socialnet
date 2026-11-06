@@ -12,7 +12,8 @@
 #   client-bench [args...]    wait for the frontend, then run the load generator
 #                             driven by $SOCIALNET_GEN_CONFIG, traces to
 #                             $SOCIALNET_OUTPUT_PATH
-#   probe [args...]           policy-liveness probe (socialnet_policy_probe)
+#   probe [args...]           stack probe (socialnet_policy_probe)
+#   http-check [args...]      HTTP API smoke check (socialnet_http_check)
 #   mode                      print the policy mode baked into this image
 set -eu
 
@@ -45,7 +46,7 @@ fi
 
 case "$svc" in
   client-bench)
-    /usr/local/bin/socialnet_policy_probe --expect none \
+    /usr/local/bin/socialnet_policy_probe \
       --frontend "${SOCIALNET_FRONTEND:-http://frontend-service:8080}" \
       --wait-secs "${SOCIALNET_WAIT_SECS:-300}" --control 0
     exec /usr/local/bin/socialnet_client_bench \
@@ -56,11 +57,15 @@ case "$svc" in
     exec /usr/local/bin/socialnet_policy_probe \
       --frontend "${SOCIALNET_FRONTEND:-http://frontend-service:8080}" "$@"
     ;;
+  http-check)
+    exec /usr/local/bin/socialnet_http_check \
+      --http "${SOCIALNET_HTTP:-http://frontend-service:5000}" "$@"
+    ;;
   mode)
     cat /etc/socialnet-mode
     ;;
   *)
-    echo "usage: socialnet-entrypoint <service>|client-bench|probe|mode [args...]" >&2
+    echo "usage: socialnet-entrypoint <service>|client-bench|probe|http-check|mode [args...]" >&2
     exit 2
     ;;
 esac

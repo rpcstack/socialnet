@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Mutex as StdMutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 // No longer need tokio::sync::Mutex for Redis
-use masa::transport::LoadBalancedChannel;
+use tonic::transport::Channel;
 use tonic::{Request, Response, Status};
 use tracing::{error, info, warn};
 
@@ -174,8 +174,8 @@ impl UserServer {
         Status::internal("An internal cache error occurred")
     }
 
-    async fn social_graph_client(&self) -> SocialGraphServiceClient<LoadBalancedChannel> {
-        let channel = LoadBalancedChannel::new(
+    async fn social_graph_client(&self) -> SocialGraphServiceClient<Channel> {
+        let channel = socialnet::connect(
             self.social_graph_service_ip.clone(),
             self.social_graph_service_port,
             self.social_graph_service_replicas,

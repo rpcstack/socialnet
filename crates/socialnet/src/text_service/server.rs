@@ -13,8 +13,8 @@ use text_svc::url_shorten_service::{
     url_shorten_service_client::UrlShortenServiceClient, ComposeUrlsRequest,
 };
 
-use masa::transport::LoadBalancedChannel;
 use std::env;
+use tonic::transport::Channel;
 
 pub mod text_svc {
     pub mod text_service {
@@ -41,8 +41,8 @@ pub struct Args {
 
 #[derive(Clone)]
 pub struct TextSvcImpl {
-    url_shorten_client: UrlShortenServiceClient<LoadBalancedChannel>,
-    user_mention_client: UserMentionServiceClient<LoadBalancedChannel>,
+    url_shorten_client: UrlShortenServiceClient<Channel>,
+    user_mention_client: UserMentionServiceClient<Channel>,
 }
 
 impl Args {
@@ -71,7 +71,7 @@ impl Args {
 
 impl TextSvcImpl {
     pub async fn new(args: &Args) -> Result<Self, Box<dyn std::error::Error>> {
-        let url_shorten_channel = LoadBalancedChannel::new(
+        let url_shorten_channel = socialnet::connect(
             args.url_shorten_service_ip.clone(),
             args.url_shorten_service_port,
             args.url_shorten_service_replicas,
@@ -79,7 +79,7 @@ impl TextSvcImpl {
         .await;
         let url_shorten_client = UrlShortenServiceClient::new(url_shorten_channel);
 
-        let user_mention_channel = LoadBalancedChannel::new(
+        let user_mention_channel = socialnet::connect(
             args.user_mention_service_ip.clone(),
             args.user_mention_service_port,
             args.user_mention_service_replicas,

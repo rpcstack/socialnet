@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [baseline, masa]
+        mode: [baseline, policy]
     steps:
       - uses: actions/checkout@v4
       - run: MODE=${{ matrix.mode }} docker compose config -q
@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [baseline, masa]
+        mode: [baseline, policy]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4

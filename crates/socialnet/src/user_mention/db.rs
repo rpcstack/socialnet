@@ -66,6 +66,21 @@ pub async fn initialize_database() -> Result<MongoClient, Box<dyn Error>> {
             e
         })?;
 
+    // Without an index every mention lookup scans the 1M seeded users (~0.5 s),
+    // far over the request SLO.
+    usermention_collection
+        .create_index(
+            mongodb::IndexModel::builder()
+                .keys(doc! { "username": 1 })
+                .build(),
+            None,
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to index usermention: {}", e);
+            e
+        })?;
+
     info!("Successfully inserted test data into usermention DB");
 
     Ok(client)

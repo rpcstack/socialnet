@@ -21,7 +21,7 @@ spec:
       containers:
       - name: post-storage-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["post-storage-service"]
         ports:
         - containerPort: 8080
@@ -60,7 +60,7 @@ spec:
       containers:
       - name: user-timeline-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["user-timeline-service"]
         ports:
         - containerPort: 8080
@@ -101,7 +101,7 @@ spec:
       containers:
       - name: home-timeline-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["home-timeline-service"]
         ports:
         - containerPort: 8080
@@ -144,7 +144,7 @@ spec:
       containers:
       - name: write-home-timeline-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["write-home-timeline-service"]
         env:
         - {name: RABBITMQ_URL, value: "amqp://guest:guest@rabbitmq:5672"}
@@ -170,7 +170,7 @@ spec:
       containers:
       - name: user-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["user-service"]
         ports:
         - containerPort: 8080
@@ -213,7 +213,7 @@ spec:
       containers:
       - name: social-graph-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["social-graph-service"]
         ports:
         - containerPort: 8080
@@ -254,7 +254,7 @@ spec:
       containers:
       - name: unique-id-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["unique-id-service"]
         ports:
         - containerPort: 8080
@@ -291,7 +291,7 @@ spec:
       containers:
       - name: media-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["media-service"]
         ports:
         - containerPort: 8080
@@ -327,7 +327,7 @@ spec:
       containers:
       - name: text-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["text-service"]
         ports:
         - containerPort: 8080
@@ -369,7 +369,7 @@ spec:
       containers:
       - name: user-mention-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["user-mention-service"]
         ports:
         - containerPort: 8080
@@ -407,7 +407,7 @@ spec:
       containers:
       - name: url-shorten-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["url-shorten-service"]
         ports:
         - containerPort: 8080
@@ -444,7 +444,7 @@ spec:
       containers:
       - name: register-user-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["register-user-service"]
         ports:
         - containerPort: 8080
@@ -483,10 +483,11 @@ spec:
       containers:
       - name: frontend-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["frontend-service"]
         ports:
-        - containerPort: 8080
+        - {name: grpc, containerPort: 8080}
+        - {name: http, containerPort: 5000}
         env:
         - {name: COMPOSE_POST_SERVICE_IP, value: "compose-post-service"}
         - {name: COMPOSE_POST_SERVICE_PORT, value: "8080"}
@@ -494,9 +495,22 @@ spec:
         - {name: REGISTER_USER_SERVICE_IP, value: "register-user-service"}
         - {name: REGISTER_USER_SERVICE_PORT, value: "8080"}
         - {name: REGISTER_USER_SERVICE_REPLICAS, value: "1"}
+        - {name: USER_SERVICE_IP, value: "user-service"}
+        - {name: USER_SERVICE_PORT, value: "8080"}
+        - {name: USER_SERVICE_REPLICAS, value: "1"}
+        - {name: SOCIAL_GRAPH_SERVICE_IP, value: "social-graph-service"}
+        - {name: SOCIAL_GRAPH_SERVICE_PORT, value: "8080"}
+        - {name: SOCIAL_GRAPH_SERVICE_REPLICAS, value: "1"}
+        - {name: USER_TIMELINE_SERVICE_IP, value: "user-timeline-service"}
+        - {name: USER_TIMELINE_SERVICE_PORT, value: "8080"}
+        - {name: USER_TIMELINE_SERVICE_REPLICAS, value: "1"}
+        - {name: HOME_TIMELINE_SERVICE_IP, value: "home-timeline-service"}
+        - {name: HOME_TIMELINE_SERVICE_PORT, value: "8080"}
+        - {name: HOME_TIMELINE_SERVICE_REPLICAS, value: "1"}
+        - {name: JWT_SECRET, value: "socialnet-demo-secret-change-me"}
         - {name: RUST_LOG, value: "info"}
         readinessProbe:
-          tcpSocket: {port: 8080}
+          tcpSocket: {port: 5000}
           periodSeconds: 2
           failureThreshold: 90
 ---
@@ -507,7 +521,8 @@ metadata:
 spec:
   selector: {app: frontend-service}
   ports:
-  - {port: 8080, targetPort: 8080}
+  - {name: grpc, port: 8080, targetPort: 8080}
+  - {name: http, port: 5000, targetPort: 5000}
 ---
 # Stable name for the load generator and for users: the frontend's entry point.
 apiVersion: v1
@@ -517,7 +532,8 @@ metadata:
 spec:
   selector: {app: frontend-service}
   ports:
-  - {port: 8080, targetPort: 8080}
+  - {name: grpc, port: 8080, targetPort: 8080}
+  - {name: http, port: 5000, targetPort: 5000}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -535,7 +551,7 @@ spec:
       containers:
       - name: compose-post-service
         image: rpcstack-socialnet
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         args: ["compose-post-service"]
         ports:
         - containerPort: 8080

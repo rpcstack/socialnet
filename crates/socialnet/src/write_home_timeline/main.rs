@@ -10,7 +10,7 @@ use deadpool_redis::redis;
 use deadpool_redis::Pool as DeadpoolRedisPool;
 
 // NEW IMPORT
-use masa::transport::LoadBalancedChannel;
+use tonic::transport::Channel;
 
 use crate::worker::run_worker;
 
@@ -23,7 +23,7 @@ use crate::social_graph::GetFollowersRequest;
 
 pub type RedisPool = DeadpoolRedisPool;
 // CHANGED: We don't need bb8 anymore. The Client itself is cheap to clone.
-pub type SocialGraphClient = SocialGraphServiceClient<LoadBalancedChannel>;
+pub type SocialGraphClient = SocialGraphServiceClient<Channel>;
 
 // --- NEW ARGS STRUCT ---
 #[derive(Clone, Debug)]
@@ -330,7 +330,7 @@ async fn main() -> Result<()> {
     }
 
     // 2. Initialize Social Graph Client (Load Balanced)
-    let sg_channel = LoadBalancedChannel::new(
+    let sg_channel = socialnet::connect(
         args.social_graph_ip,
         args.social_graph_port,
         args.social_graph_replicas,

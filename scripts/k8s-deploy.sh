@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 # Build the socialnet image for MODE, push it to the local registry and deploy
-# k8s/base (baseline) or k8s/overlays/masa. Expects scripts/kind-up.sh first.
+# k8s/base (baseline) or k8s/overlays/<mode>. Expects scripts/kind-up.sh first.
 #
-#   scripts/k8s-deploy.sh [baseline|masa]       # MODE may also be in the environment
-#   LOADGEN=1 scripts/k8s-deploy.sh masa        # also start the load generator Job
-#   SKIP_BUILD=1 scripts/k8s-deploy.sh masa     # reuse the pushed image
-#   PREBUILT=1 scripts/k8s-deploy.sh masa       # push the local rpcstack-socialnet:masa image
+#   scripts/k8s-deploy.sh [baseline|policy]       # MODE may also be in the environment
+#   LOADGEN=1 scripts/k8s-deploy.sh policy        # also start the load generator Job
+#   SKIP_BUILD=1 scripts/k8s-deploy.sh policy     # reuse the pushed image
+#   PREBUILT=1 scripts/k8s-deploy.sh policy       # push the local rpcstack-socialnet:policy image
 #
-# Follow the load generator with:  kubectl -n rpcstack-socialnet logs -f job/loadgen
+# Environment (see scripts/lib/k8s.sh): KIND_CLUSTER, REG_PORT (registry
+# localhost:<port>), SOCIALNET_NAMESPACE, SOCIALNET_IMAGE_NAME, BUILDKIT_ADDR.
+#
+# Follow the load generator with:  kubectl -n $NS logs -f job/loadgen
 set -euo pipefail
 cd "$(dirname "$0")/.."
 MODE=${1:-${MODE:-baseline}}
-case "$MODE" in baseline|masa) ;; *) echo "usage: $0 [baseline|masa]" >&2; exit 2;; esac
+case "$MODE" in baseline|policy) ;; *) echo "usage: $0 [baseline|policy]" >&2; exit 2;; esac
 export MODE
 . scripts/lib/k8s.sh
 

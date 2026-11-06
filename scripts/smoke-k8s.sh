@@ -2,13 +2,20 @@
 # Kubernetes (kind) smoke test for one mode; same assertions as smoke-compose.sh.
 # Creates the cluster (scripts/kind-up.sh) and deploys (scripts/k8s-deploy.sh).
 #
-#   scripts/smoke-k8s.sh baseline|masa
+#   scripts/smoke-k8s.sh baseline|policy
 #
-# Set KEEP=1 to leave the cluster up afterwards (otherwise it is deleted).
+# Checks: stack probe, HTTP API check (every route of the HTTP frontend), load
+# run. The initial no-op `policy` mode is judged exactly like `baseline`.
+#
+# Environment (see scripts/lib/k8s.sh): KIND_CLUSTER, REG_PORT,
+# SOCIALNET_NAMESPACE, SOCIALNET_IMAGE_NAME, BUILDKIT_ADDR. SKIP_KIND_UP=1 uses
+# an existing cluster and registry instead of creating them (scripts/kind-up.sh);
+# then only the namespace is deleted afterwards. Otherwise the cluster is
+# deleted afterwards too; KEEP=1 leaves everything up.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-MODE=${1:?usage: smoke-k8s.sh baseline|masa}
-case "$MODE" in baseline|masa) ;; *) echo "mode must be baseline or masa" >&2; exit 2;; esac
+MODE=${1:?usage: smoke-k8s.sh baseline|policy}
+case "$MODE" in baseline|policy) ;; *) echo "mode must be baseline or policy" >&2; exit 2;; esac
 export MODE
 . scripts/lib/k8s.sh
 . scripts/lib/traces.sh
@@ -21,12 +28,18 @@ cleanup() {
     echo "== smoke FAILED; pod state"; kc get pods 2>&1 | tail -n 40 || true
     kc logs job/loadgen --tail 20 2>&1 || true
   fi
-  if [ "${KEEP:-0}" != 1 ]; then k8s_down >/dev/null 2>&1 || true; fi
+  if [ "${KEEP:-0}" != 1 ]; then
+    if [ "${SKIP_KIND_UP:-0}" = 1 ]; then
+      kubectl --context "$(k8s_ctx)" delete namespace "$NS" --ignore-not-found --wait=true >/dev/null 2>&1 || true
+    else
+      k8s_down >/dev/null 2>&1 || true
+    fi
+  fi
   exit $status
 }
 trap cleanup EXIT
 
-scripts/kind-up.sh
+[ "${SKIP_KIND_UP:-0}" = 1 ] || scripts/kind-up.sh
 scripts/k8s-deploy.sh "$MODE"
 
 TARGETS=""
@@ -39,32 +52,27 @@ done
 
 probe_run() {
   # shellcheck disable=SC2086
-  k8s_probe "$MODE" --wait-secs 240 --control 20 $TARGETS
+  k8s_probe --wait-secs 240 --control 20 $TARGETS
 }
 
-# Cold start: services restart once while their databases start, and on a slow
-# machine Masa's admission control can reject the first control requests. Retry
-# the probe a few times until the stack settles; a run only passes when ALL of
-# its checks (20/20 control requests, 13/13 services) pass in that one run.
-echo "== [$MODE] policy-live probe (expect $MODE)"
+# Cold start: services restart once while their databases start. Retry the
+# probe a few times until the stack settles; a run only passes when ALL of its
+# checks (20/20 control requests, 13/13 services) pass in that one run.
+echo "== [$MODE] stack probe"
 probe_ok=0
 for attempt in 1 2 3 4 5 6; do
   if probe_run >/tmp/probe-$$.log 2>&1; then probe_ok=1; break; fi
-  echo "probe attempt $attempt failed:"; grep -E "control|policy-live|PROBE|FAIL" /tmp/probe-$$.log | tail -n 6
+  tail -n 5 /tmp/probe-$$.log
+  echo "probe attempt $attempt failed:"; { grep -E "control|PROBE|FAIL|->" /tmp/probe-$$.log || true; } | tail -n 8
   sleep 10
 done
 cat /tmp/probe-$$.log; rm -f /tmp/probe-$$.log
-[ "$probe_ok" = 1 ] || { echo "FAIL: policy-live probe never passed"; exit 1; }
+[ "$probe_ok" = 1 ] || { echo "FAIL: stack probe never passed"; exit 1; }
 
-if [ "$MODE" = baseline ]; then
-  echo "== [baseline] negative check: the Masa policy-live expectation must FAIL here"
-  # shellcheck disable=SC2086
-  if k8s_probe masa --control 1 $TARGETS >/tmp/neg-$$.log 2>&1; then
-    cat /tmp/neg-$$.log; echo "FAIL: policy-live check passed in baseline"; exit 1
-  fi
-  grep -E "policy-live|PROBE" /tmp/neg-$$.log; rm -f /tmp/neg-$$.log
-  echo "policy-live check failed in baseline, as required"
-fi
+echo "== [$MODE] HTTP API check (every route of the HTTP frontend)"
+mkdir -p "$OUT"
+k8s_run http-check http-check --wait-secs 240 | tee "$OUT/http-check.txt"
+grep -q "HTTP CHECK PASS" "$OUT/http-check.txt" || { echo "FAIL: HTTP API check"; exit 1; }
 
 run_load() { k8s_loadgen "$1" "$OUT"; }
 
@@ -72,12 +80,4 @@ echo "== [$MODE] load run (config/gen_config.json)"
 run_load gen_config.json
 check_traces "$OUT" "$MIN_SUCCESS"
 
-if [ "$MODE" = masa ]; then
-  echo "== [masa] overload run (config/gen_config.overload.json)"
-  run_load gen_config.overload.json
-  OVERLOAD=1 check_traces "$OUT" 0 --expect-early-returns
-  echo "== [masa] recovery run (config/gen_config.json)"
-  run_load gen_config.json
-  check_traces "$OUT" "$MIN_SUCCESS"
-fi
 echo "SMOKE PASS (k8s, $MODE)"

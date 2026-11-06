@@ -1,3 +1,5 @@
+extern crate self as socialnet;
+
 pub mod media {
     tonic::include_proto!("media");
     pub mod server;
@@ -64,8 +66,45 @@ pub mod register_user {
     pub mod server;
 }
 
+pub mod social_graph {
+    tonic::include_proto!("social_graph");
+}
+
+pub mod config;
+
 pub mod frontend {
     tonic::include_proto!("frontend");
 
+    pub mod http;
     pub mod server;
+}
+
+use std::time::Duration;
+
+use tonic::transport::{Channel, Endpoint};
+
+/// Connect to a downstream socialnet service.
+///
+/// Replicas are addressed as `ip-1 .. ip-N` (one hostname per replica: the
+/// Compose container names, or Kubernetes Services named `<service>-<n>`), as
+/// in the original benchmark. With one replica the connection is retried until
+/// the service is up; with several the client balances over all of them.
+pub async fn connect(ip: String, port: u16, replicas: u8) -> Channel {
+    assert!(replicas > 0, "at least one replica required");
+    let endpoints =
+        (1..=replicas).map(|i| Endpoint::from_shared(format!("http://{ip}-{i}:{port}")).unwrap());
+    if replicas == 1 {
+        let endpoint = endpoints.into_iter().next().unwrap();
+        loop {
+            match endpoint.connect().await {
+                Ok(channel) => return channel,
+                Err(error) => {
+                    log::warn!("failed to connect to {}: {error}; retrying", endpoint.uri());
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+            }
+        }
+    } else {
+        Channel::balance_list(endpoints)
+    }
 }

@@ -1,9 +1,11 @@
 # One image holds every socialnet binary; each compose service / k8s Deployment
 # picks one by passing a service name to docker/entrypoint.sh. MODE selects the
-# rpcstack policy stack at build time: `baseline` (no-op hooks) or `masa`
-# (composed Masa policy).
+# policy mode at build time (Cargo feature of the socialnet crate):
+#   baseline  framework defaults: generated stubs use NoopHooks, FIFO run queue
+#   policy    the RPC policy of the policy/ directory (run queue + module
+#             stack); starts as a no-op, like baseline
 #
-#   docker build --build-arg MODE=masa -t rpcstack-socialnet:masa .
+#   docker build --build-arg MODE=policy -t rpcstack-socialnet:policy .
 
 FROM rust:1-bookworm AS builder
 ARG MODE=baseline
@@ -14,11 +16,16 @@ WORKDIR /src
 # rust-toolchain.toml pins the nightly; rustup installs it on first use.
 COPY rust-toolchain.toml Cargo.toml Cargo.lock ./
 COPY crates ./crates
+COPY policy ./policy
+# The policy mode compiles the run queue into rpcstack-sched, which is a
+# dependency, so the queue source must exist at build time (.cargo/config.toml
+# points RPCSTACK_QUEUE_SOURCE at policy/queue/queue.rs; baseline ignores it).
+COPY .cargo ./.cargo
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/src/target,id=socialnet-target-${MODE} \
     set -eu; \
-    case "$MODE" in baseline|masa) ;; *) echo "MODE must be baseline or masa" >&2; exit 1;; esac; \
+    case "$MODE" in baseline|policy) ;; *) echo "MODE must be baseline or policy" >&2; exit 1;; esac; \
     jobs=$(nproc); [ "$jobs" -le 32 ] || jobs=32; \
     ulimit -n 65536 2>/dev/null || true; \
     cargo build --release --locked -j "$jobs" -p socialnet --features "socialnet/${MODE}"; \

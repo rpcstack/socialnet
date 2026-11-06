@@ -23,7 +23,7 @@ use post_storage::ReadPostsRequest;
 use social_graph::social_graph_service_client::SocialGraphServiceClient;
 use social_graph::GetFollowersRequest;
 
-use masa::transport::LoadBalancedChannel;
+use tonic::transport::Channel;
 
 use std::env;
 
@@ -69,9 +69,9 @@ impl Args {
 #[derive(Clone)]
 pub struct HomeTimelineService {
     redis_pool: Pool,
-    // CHANGED: Use typed Clients with LoadBalancedChannel
-    post_storage_client: PostStorageServiceClient<LoadBalancedChannel>,
-    social_graph_client: SocialGraphServiceClient<LoadBalancedChannel>,
+    // CHANGED: Use typed Clients with Channel
+    post_storage_client: PostStorageServiceClient<Channel>,
+    social_graph_client: SocialGraphServiceClient<Channel>,
 }
 
 impl HomeTimelineService {
@@ -81,7 +81,7 @@ impl HomeTimelineService {
         args: &Args, // CHANGED: Accept Args struct
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Initialize Post Storage Client
-        let post_storage_channel = LoadBalancedChannel::new(
+        let post_storage_channel = socialnet::connect(
             args.post_storage_ip.clone(),
             args.post_storage_port,
             args.post_storage_replicas,
@@ -90,7 +90,7 @@ impl HomeTimelineService {
         let post_storage_client = PostStorageServiceClient::new(post_storage_channel);
 
         // Initialize Social Graph Client
-        let social_graph_channel = LoadBalancedChannel::new(
+        let social_graph_channel = socialnet::connect(
             args.social_graph_ip.clone(),
             args.social_graph_port,
             args.social_graph_replicas,

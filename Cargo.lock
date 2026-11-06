@@ -178,7 +178,6 @@ version = "0.1.0"
 dependencies = [
  "env_logger 0.9.3",
  "log",
- "masa",
  "rand 0.8.8",
  "rand_distr",
  "serde",
@@ -1971,54 +1970,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "masa"
-version = "0.1.0"
-source = "git+https://github.com/rpcstack/rpcstack?rev=de0cedc080882469b316c8125b7ad17a7c93e7fb#de0cedc080882469b316c8125b7ad17a7c93e7fb"
-dependencies = [
- "hyper",
- "masa-core",
- "masa-policy",
- "tokio",
- "tonic",
- "tower",
-]
-
-[[package]]
-name = "masa-core"
-version = "0.1.0"
-source = "git+https://github.com/rpcstack/rpcstack?rev=de0cedc080882469b316c8125b7ad17a7c93e7fb#de0cedc080882469b316c8125b7ad17a7c93e7fb"
-dependencies = [
- "http",
- "log",
- "rpcstack-wire",
- "serde",
- "serde_json",
- "tower-service",
-]
-
-[[package]]
-name = "masa-policy"
-version = "0.1.0"
-source = "git+https://github.com/rpcstack/rpcstack?rev=de0cedc080882469b316c8125b7ad17a7c93e7fb#de0cedc080882469b316c8125b7ad17a7c93e7fb"
-dependencies = [
- "dashmap",
- "http",
- "log",
- "masa-core",
- "once_cell",
- "rajomon",
- "rand 0.8.8",
- "rand_distr",
- "rpcstack",
- "rpcstack-tonic",
- "rpcstack-wire",
- "serde",
- "serde_json",
- "tokio",
- "tonic",
-]
-
-[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2139,14 +2090,6 @@ name = "multimap"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
-
-[[package]]
-name = "multiqueue-prio-queue"
-version = "0.1.0"
-source = "git+https://github.com/rpcstack/rpcstack?rev=de0cedc080882469b316c8125b7ad17a7c93e7fb#de0cedc080882469b316c8125b7ad17a7c93e7fb"
-dependencies = [
- "rand 0.8.8",
-]
 
 [[package]]
 name = "multiversion_no_op"
@@ -2744,23 +2687,6 @@ name = "radium"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
-
-[[package]]
-name = "rajomon"
-version = "0.1.0"
-source = "git+https://github.com/rpcstack/rpcstack?rev=de0cedc080882469b316c8125b7ad17a7c93e7fb#de0cedc080882469b316c8125b7ad17a7c93e7fb"
-dependencies = [
- "dashmap",
- "log",
- "once_cell",
- "rand 0.8.8",
- "rand_distr",
- "rpcstack",
- "serde",
- "serde_json",
- "tokio",
- "tonic",
-]
 
 [[package]]
 name = "rand"
@@ -3481,28 +3407,46 @@ dependencies = [
  "clap 4.6.7",
  "deadpool-redis",
  "env_logger 0.10.2",
+ "form_urlencoded",
  "futures",
  "futures-lite 2.6.1",
  "hex",
+ "http",
+ "httpdate",
+ "hyper",
  "jsonwebtoken",
  "lapin",
  "log",
- "masa",
  "mongodb",
  "once_cell",
  "prost",
  "protoc-bin-vendored",
  "rand 0.8.8",
  "regex",
+ "rpcstack-sched",
+ "rpcstack-tonic",
  "serde",
  "serde_json",
  "sha2",
+ "socialnet-policy",
  "structopt",
  "tokio",
  "tonic",
  "tonic-build",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "socialnet-policy"
+version = "0.1.0"
+dependencies = [
+ "hyper",
+ "rpcstack",
+ "rpcstack-sched",
+ "rpcstack-tonic",
+ "tokio",
+ "tonic",
 ]
 
 [[package]]
@@ -3860,7 +3804,6 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
- "multiqueue-prio-queue",
  "num_cpus",
  "parking_lot",
  "pin-project-lite",
@@ -4035,7 +3978,6 @@ version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
- "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",

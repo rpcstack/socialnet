@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use tonic::{Request, Response, Status};
 
 // NEW IMPORT
-use masa::transport::LoadBalancedChannel;
+use tonic::transport::Channel;
 
 // gRPC generated modules
 pub mod social_graph {
@@ -69,8 +69,8 @@ struct Edge {
 pub struct SocialGraphService {
     redis_pool: Pool,
     mongo_collection: Collection<Document>,
-    // CHANGED: Use typed Client with LoadBalancedChannel
-    user_service_client: UserServiceClient<LoadBalancedChannel>,
+    // CHANGED: Use typed Client with Channel
+    user_service_client: UserServiceClient<Channel>,
 }
 
 impl SocialGraphService {
@@ -99,7 +99,7 @@ impl SocialGraphService {
         info!("Created unique index on user_id field for social-graph collection.");
 
         // Initialize User Service Client
-        let user_service_channel = LoadBalancedChannel::new(
+        let user_service_channel = socialnet::connect(
             args.user_service_ip.clone(),
             args.user_service_port,
             args.user_service_replicas,
