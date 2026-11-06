@@ -3,12 +3,14 @@
 # policy mode at build time (Cargo feature of the socialnet crate):
 #   baseline  framework defaults: generated stubs use NoopHooks, FIFO run queue
 #   policy    the RPC policy of the policy/ directory (run queue + module
-#             stack); starts as a no-op, like baseline
+#             stack); starts as a no-op, like baseline. The default: an image
+#             built without build arguments (the vibesys task builds it so,
+#             .vibesys/tasks/rpc-policy-k8s) runs the policy/ directory.
 #
 #   docker build --build-arg MODE=policy -t rpcstack-socialnet:policy .
 
 FROM rust:1-bookworm AS builder
-ARG MODE=baseline
+ARG MODE=policy
 RUN apt-get update && apt-get install -y --no-install-recommends \
       pkg-config libssl-dev build-essential git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -33,7 +35,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     find target/release -maxdepth 1 -type f -perm -u+x ! -name '*.so' ! -name '*.d' -exec cp {} /out/ \;
 
 FROM debian:bookworm-slim
-ARG MODE=baseline
+ARG MODE=policy
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*

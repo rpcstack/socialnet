@@ -1,0 +1,13 @@
+# From the base's 3 samples on vibesys-k8s (README.md, "Baseline"): spreads of 2.5% and 1.6%, rounded up.
+[[objective]]
+name = "operations_per_second"
+direction = "max"
+relative_noise = 0.05
+
+[[objective]]
+name = "latency_ms.p99"
+direction = "min"
+relative_noise = 0.08
+
+[pareto]
+relative_noise = 0.08
