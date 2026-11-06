@@ -7,8 +7,8 @@ check whose oracle judges every answer of a recorded history. The agent's brief 
 [OBJECTIVE.md](OBJECTIVE.md); this file is for whoever maintains the task. It mirrors the
 hotel's task of rpcstack/hotel (same layout, objectives and mutant approach).
 
-It runs on vibesys-evaluator 0.3.0rc2: the Go SDK (`github.com/uw-syfi/vibesys/sdk/
-vibesys-evaluator/go v0.3.0-rc.2`, in `evaluator/go.mod`) and the `vibesys-evaluator==0.3.0rc2` PyPI package
+It runs on vibesys-evaluator 0.3.0rc3: the Go SDK (`github.com/uw-syfi/vibesys/sdk/
+vibesys-evaluator/go v0.3.0-rc.3`, in `evaluator/go.mod`) and the `vibesys-evaluator==0.3.0rc3` PyPI package
 (`Dockerfile`, on a digest-pinned python base; the private ghcr evaluator image is not used because
 the in-cluster rebuild cannot pull it).
 Both pins move together.
