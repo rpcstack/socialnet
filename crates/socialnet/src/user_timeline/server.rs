@@ -3,8 +3,8 @@ use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use deadpool_redis::redis::cluster::ClusterClient;
 use deadpool_redis::redis::aio::MultiplexedConnection;
+use deadpool_redis::redis::cluster::ClusterClient;
 use deadpool_redis::redis::{Client as RedisClient, Cmd, FromRedisValue, RedisError};
 use mongodb::bson::{doc, Bson, Document};
 use mongodb::options::{FindOneAndUpdateOptions, FindOneOptions, ReturnDocument};
